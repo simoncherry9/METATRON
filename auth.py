@@ -4,13 +4,13 @@ PenTool - auth.py
 Authentication utils for FastAPI (JWT + API keys).
 """
 
+import os, secrets
 from fastapi import HTTPException, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, APIKeyHeader
 import jwt
 from jwt import PyJWTError
-import os
 
-SECRET_KEY = os.getenv("JWT_SECRET", "pentool-secret-key")
+SECRET_KEY = os.getenv("JWT_SECRET", secrets.token_hex(32))
 ALGORITHM = "HS256"
 API_KEY_NAME = "X-API-KEY"
 API_KEY = os.getenv("API_KEY", "pentool-api-key")
