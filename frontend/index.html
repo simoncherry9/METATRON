@@ -1,0 +1,1692 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PenTool — AI Security Operations</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="animated-bg"></div>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <span class="brand-mark"><i class="fas fa-shield-halved"></i></span>
+                <span class="brand-copy">PenTool <small>AI SECOPS</small></span>
+            </div>
+            <div class="nav-menu">
+                <a href="#" class="nav-link active" data-section="dashboard">
+                    <i class="fas fa-chart-line"></i> Dashboard
+                </a>
+                <a href="#" class="nav-link" data-section="scan">
+                    <i class="fas fa-terminal"></i> Nuevo Escaneo
+                </a>
+                <a href="#" class="nav-link" data-section="scan-detail" id="scan-detail-nav">
+                    <i class="fas fa-terminal"></i> Sesion Activa
+                </a>
+                <a href="#" class="nav-link" data-section="history">
+                    <i class="fas fa-history"></i> Historial
+                </a>
+                <a href="#" class="nav-link" data-section="reports">
+                    <i class="fas fa-file-export"></i> Reportes
+                </a>
+                <a href="#" class="nav-link" data-section="chat">
+                    <i class="fas fa-comments"></i> Chat IA
+                </a>
+                <a href="#" class="nav-link" data-section="tools">
+                    <i class="fas fa-toolbox"></i> Herramientas
+                </a>
+                <a href="#" class="nav-link" data-section="exploits">
+                    <i class="fas fa-code"></i> Exploits
+                </a>
+                <a href="#" class="nav-link" data-section="settings">
+                    <i class="fas fa-cog"></i> Configuración
+                </a>
+                <a href="#" class="nav-link" data-section="admin">
+                    <i class="fas fa-users-cog"></i> Admin
+                </a>
+                <a href="#" class="nav-link" data-section="agent">
+                    <i class="fas fa-robot"></i> Agente IA
+                </a>
+                <a href="#" class="nav-link" data-section="cve">
+                    <i class="fas fa-shield-virus"></i> CVE Intel
+                </a>
+                <a href="#" class="nav-link" data-section="explorer">
+                    <i class="fas fa-folder-open"></i> Explorador
+                </a>
+                <a href="#" class="nav-link" data-section="sessions">
+                    <i class="fas fa-terminal"></i> Sesiones
+                </a>
+                <a href="#" class="nav-link" data-section="system">
+                    <i class="fas fa-heart-pulse"></i> Sistema
+                </a>
+            </div>
+            <div class="nav-auth">
+                <button type="button" class="command-trigger" id="command-palette-btn" aria-label="Abrir centro de comandos">
+                    <i class="fas fa-search"></i>
+                    <span>Comandos</span>
+                    <kbd>Ctrl K</kbd>
+                </button>
+                <div class="user-profile">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="username">Admin</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="workspace-topbar">
+                <div>
+                    <span class="workspace-context">PENTOOL / OPERACIONES</span>
+                    <strong id="workspace-title">Resumen de seguridad</strong>
+                </div>
+                <div class="workspace-status">
+                    <span class="topbar-status"><i></i> API <b id="api-status">EN LÍNEA</b></span>
+                    <span class="topbar-status"><i></i> DB <b id="db-status">EN LÍNEA</b></span>
+                    <span class="topbar-status"><i></i> IA <b id="llm-status">PENDIENTE</b></span>
+                    <button type="button" class="lan-access" id="copy-lan-url" title="Copiar dirección de red local">
+                        <i class="fas fa-network-wired"></i>
+                        <span id="lan-url-label">Detectando red…</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Dashboard Section -->
+            <section id="dashboard-section" class="content-section active">
+                <div class="section-header dashboard-hero">
+                    <div>
+                        <span class="eyebrow">CENTRO DE OPERACIONES</span>
+                        <h1>Visibilidad ofensiva, decisiones claras.</h1>
+                        <p>Reconocimiento, análisis asistido por IA y evidencia técnica en un único flujo.</p>
+                    </div>
+                    <div class="hero-actions">
+                        <button type="button" class="btn btn-secondary" data-command-section="history">
+                            <i class="fas fa-clock-rotate-left"></i> Ver historial
+                        </button>
+                        <button type="button" class="btn btn-primary" data-command-section="scan">
+                            <i class="fas fa-crosshairs"></i> Nuevo escaneo
+                        </button>
+                    </div>
+                </div>
+
+                <div class="intel-strip" aria-label="Estado de inteligencia artificial">
+                    <div class="intel-primary">
+                        <span class="intel-icon"><i class="fas fa-microchip"></i></span>
+                        <div>
+                            <span class="intel-label">Motor de inteligencia</span>
+                            <strong id="active-provider-name">Conectando proveedor…</strong>
+                        </div>
+                    </div>
+                    <div class="intel-metric">
+                        <span>Modelo activo</span>
+                        <strong id="active-model-name">Sin seleccionar</strong>
+                    </div>
+                    <div class="intel-metric">
+                        <span>Última latencia</span>
+                        <strong id="active-provider-latency">—</strong>
+                    </div>
+                    <div class="intel-metric intel-health">
+                        <span>Estado</span>
+                        <strong><i class="status-dot"></i> <span id="active-provider-health">Pendiente</span></strong>
+                    </div>
+                    <button type="button" class="btn btn-ghost" data-command-section="settings">
+                        Configurar <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+
+                <div class="metric-grid" aria-label="Indicadores principales">
+                    <article class="metric-card">
+                        <span class="metric-icon"><i class="fas fa-radar"></i></span>
+                        <div><span>Escaneos totales</span><strong id="total-scans">0</strong></div>
+                    </article>
+                    <article class="metric-card">
+                        <span class="metric-icon active"><i class="fas fa-wave-square"></i></span>
+                        <div><span>Operaciones activas</span><strong id="active-scans">0</strong></div>
+                    </article>
+                    <article class="metric-card">
+                        <span class="metric-icon warning"><i class="fas fa-bug"></i></span>
+                        <div><span>Vulnerabilidades</span><strong id="total-vulns">0</strong></div>
+                    </article>
+                    <article class="metric-card">
+                        <span class="metric-icon danger"><i class="fas fa-triangle-exclamation"></i></span>
+                        <div><span>Críticas</span><strong id="critical-vulns">0</strong></div>
+                    </article>
+                    <article class="metric-card">
+                        <span class="metric-icon high"><i class="fas fa-arrow-trend-up"></i></span>
+                        <div><span>Severidad alta</span><strong id="high-vulns">0</strong></div>
+                    </article>
+                </div>
+
+                <div class="dashboard-grid">
+                    <!-- Scan Widget -->
+                    <div class="widget widget-lg">
+                        <div class="widget-header">
+                            <h2><i class="fas fa-radiation-alt"></i> Iniciar Nuevo Escaneo</h2>
+                        </div>
+                        <form id="quick-scan-form" class="quick-scan-form">
+                            <div class="form-group">
+                                <input 
+                                    type="text" 
+                                    id="target-input" 
+                                    placeholder="Ingresa IP o dominio (ej: 192.168.1.1 o google.com)"
+                                    class="form-input"
+                                    required
+                                >
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-play"></i> Escanear
+                                </button>
+                            </div>
+                        </form>
+                        <div id="scan-progress" class="scan-progress" style="display: none;">
+                            <div class="progress-bar">
+                                <div class="progress-fill"></div>
+                            </div>
+                            <p class="progress-text">Escaneo en progreso... <span id="progress-scan-id"></span></p>
+                        </div>
+                    </div>
+
+                    <!-- Recent Scans -->
+                    <div class="widget widget-lg">
+                        <div class="widget-header">
+                            <h2><i class="fas fa-list"></i> Escaneos Recientes</h2>
+                        </div>
+                        <div id="recent-scans-list" class="scans-list">
+                            <div class="empty-state">
+                                <i class="fas fa-inbox"></i>
+                                <p>No hay escaneos recientes</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Threat Level Chart -->
+                    <div class="widget widget-md">
+                        <div class="widget-header">
+                            <h2><i class="fas fa-chart-pie"></i> Nivel de Amenaza</h2>
+                        </div>
+                        <canvas id="threat-chart"></canvas>
+                    </div>
+
+                    <!-- Vulnerability Summary -->
+                    <div class="widget widget-md">
+                        <div class="widget-header">
+                            <h2><i class="fas fa-bug"></i> Resumen de Vulnerabilidades</h2>
+                        </div>
+                        <div class="vuln-summary">
+                            <div class="vuln-item critical">
+                                <span class="vuln-count">0</span>
+                                <span class="vuln-label">Críticas</span>
+                            </div>
+                            <div class="vuln-item high">
+                                <span class="vuln-count">0</span>
+                                <span class="vuln-label">Altas</span>
+                            </div>
+                            <div class="vuln-item medium">
+                                <span class="vuln-count">0</span>
+                                <span class="vuln-label">Medias</span>
+                            </div>
+                            <div class="vuln-item low">
+                                <span class="vuln-count">0</span>
+                                <span class="vuln-label">Bajas</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Latest Vulnerabilities -->
+                    <div class="widget widget-lg">
+                        <div class="widget-header">
+                            <h2><i class="fas fa-exclamation-triangle"></i> Vulnerabilidades Detectadas</h2>
+                        </div>
+                        <div id="latest-vulns-list" class="vulns-list">
+                            <div class="empty-state">
+                                <i class="fas fa-shield-check"></i>
+                                <p>Sin vulnerabilidades detectadas</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- System Activity -->
+                    <div class="widget widget-lg">
+                        <div class="widget-header">
+                            <h2><i class="fas fa-activity"></i> Actividad del Sistema</h2>
+                        </div>
+                        <div id="activity-log" class="activity-log">
+                            <div class="activity-item">
+                                <span class="activity-time">Ahora</span>
+                                <span class="activity-text">Dashboard iniciado</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Scan Section -->
+            <section id="scan-section" class="content-section">
+                <div class="section-header">
+                    <h1>Nuevo Escaneo</h1>
+                    <p>Configura y ejecuta un escaneo completo</p>
+                </div>
+
+                <div class="widget widget-lg">
+                    <div class="widget-header">
+                        <h2><i class="fas fa-cog"></i> Configuración de Escaneo</h2>
+                    </div>
+                    <form id="full-scan-form" class="full-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Objetivo (IP o Dominio)</label>
+                                <input type="text" name="target" class="form-input" placeholder="192.168.1.1" required>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Tipo de Escaneo</label>
+                                <select name="scan-type" class="form-input">
+                                    <option value="quick">Rápido (5 min)</option>
+                                    <option value="standard">Estándar (15 min)</option>
+                                    <option value="deep">Profundo (30 min)</option>
+                                    <option value="custom">Personalizado</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Intensidad</label>
+                                <select name="intensity" class="form-input">
+                                    <option value="low">Baja</option>
+                                    <option value="medium" selected>Media</option>
+                                    <option value="high">Alta</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" name="dns-enum" checked> Enumeración DNS
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" name="service-detect" checked> Detección de Servicios
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" name="web-crawl" checked> Crawling Web
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" name="nikto"> Baseline web avanzado / Nikto
+                                </label>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-play"></i> Iniciar Escaneo
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <section id="scan-detail-section" class="content-section">
+                <div class="section-header">
+                    <h1 id="scan-detail-title">Sesion de Escaneo</h1>
+                    <p id="scan-detail-subtitle">Seguimiento en vivo del objetivo</p>
+                    <div class="settings-actions">
+                        <button type="button" class="btn btn-secondary" id="pause-scan-btn">
+                            <i class="fas fa-pause"></i> Pausar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="dashboard-grid">
+                    <div class="widget widget-lg">
+                        <div class="widget-header">
+                            <h2><i class="fas fa-satellite-dish"></i> Estado del Objetivo</h2>
+                        </div>
+                        <div class="scan-session-meta">
+                            <div class="stat-box">
+                                <div class="stat-number" id="detail-status">QUEUED</div>
+                                <div class="stat-label">Estado</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-number" id="detail-phase">QUEUE</div>
+                                <div class="stat-label">Fase</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-number" id="detail-risk">-</div>
+                                <div class="stat-label">Riesgo</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="widget widget-lg">
+                        <div class="widget-header">
+                            <h2><i class="fas fa-terminal"></i> Terminal de Compromiso</h2>
+                        </div>
+                        <div class="terminal-panel terminal-grid">
+                            <div class="terminal-block">
+                                <div class="scan-session-meta">
+                                    <div class="stat-box">
+                                        <div class="stat-number" id="scan-session-id">No disponible</div>
+                                        <div class="stat-label">Sesion</div>
+                                    </div>
+                                    <div class="stat-box">
+                                        <div class="stat-number" id="scan-root-status">NO</div>
+                                        <div class="stat-label">Root</div>
+                                    </div>
+                                </div>
+                                <div class="terminal-actions">
+                                    <input type="text" id="terminal-command-input" class="form-input" placeholder="whoami, id, uname -a">
+                                    <button type="button" class="btn btn-primary" id="terminal-command-btn" disabled>
+                                        <i class="fas fa-play"></i> Ejecutar
+                                    </button>
+                                    <button type="button" class="btn btn-secondary" id="terminal-analyze-btn" disabled>
+                                        <i class="fas fa-brain"></i> Analizar salida
+                                    </button>
+                                    <button type="button" class="btn btn-secondary" id="sensitive-search-btn" disabled>
+                                        <i class="fas fa-search-dollar"></i> Buscar datos sensibles
+                                    </button>
+                                </div>
+                                <div class="terminal-output-group">
+                                    <label>Salida</label>
+                                    <pre id="terminal-output" class="terminal-output">Sin salida todavia.</pre>
+                                </div>
+                                <div class="terminal-output-group">
+                                    <label>Analisis de IA</label>
+                                    <pre id="terminal-analysis-response" class="terminal-output">La IA analizara aqui la ultima salida.</pre>
+                                </div>
+                                <div id="session-actions" class="session-actions" style="display: none;">
+                                    <h4>Acciones de sesion Meterpreter</h4>
+                                    <div class="terminal-actions">
+                                        <button type="button" class="btn btn-secondary" id="stop-session-btn">
+                                            <i class="fas fa-stop"></i> Detener sesion
+                                        </button>
+                                        <button type="button" class="btn btn-danger" id="destroy-session-btn">
+                                            <i class="fas fa-trash"></i> Eliminar sesion
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="chat-block">
+                                <label>Hablar con la IA sobre esta sesion</label>
+                                <textarea id="terminal-chat-input" class="form-input terminal-chat-input" placeholder="Preguntale que significa la salida o que conviene revisar despues"></textarea>
+                                <button type="button" class="btn btn-primary" id="terminal-chat-btn" disabled>
+                                    <i class="fas fa-paper-plane"></i> Enviar a IA
+                                </button>
+                                <pre id="terminal-chat-response" class="terminal-output">La respuesta de la IA aparecera aqui.</pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="widget widget-lg">
+                        <div class="widget-header">
+                            <h2><i class="fas fa-stream"></i> Timeline</h2>
+                        </div>
+                        <div id="scan-events-list" class="log-list">
+                            <div class="empty-state">
+                                <i class="fas fa-hourglass-half"></i>
+                                <p>Esperando eventos del escaneo</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="widget widget-lg">
+                        <div class="widget-header">
+                            <h2><i class="fas fa-terminal"></i> Comandos Ejecutados</h2>
+                        </div>
+                        <div id="scan-commands-list" class="log-list">
+                            <div class="empty-state">
+                                <i class="fas fa-terminal"></i>
+                                <p>Sin comandos registrados todavia</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="widget widget-lg">
+                        <div class="widget-header">
+                            <h2><i class="fas fa-brain"></i> Salida del LLM</h2>
+                        </div>
+                        <pre id="scan-llm-response" class="terminal-output">Aun no hay respuesta del modelo.</pre>
+                    </div>
+
+                    <div class="widget widget-lg">
+                        <div class="widget-header">
+                            <h2><i class="fas fa-file-code"></i> Recon Consolidado</h2>
+                        </div>
+                        <pre id="scan-raw-output" class="terminal-output">Aun no hay salida de recon.</pre>
+                    </div>
+
+                    <div class="widget widget-lg">
+                        <div class="widget-header">
+                            <h2><i class="fas fa-user-secret"></i> Explotacion y Sesiones</h2>
+                        </div>
+                        <div id="scan-exploitation-list" class="log-list">
+                            <div class="empty-state">
+                                <i class="fas fa-bolt"></i>
+                                <p>Las sugerencias de explotacion y sesiones apareceran aqui</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- History Section -->
+            <section id="history-section" class="content-section">
+                <div class="section-header">
+                    <h1>Historial de Escaneos</h1>
+                    <p>Todos tus escaneos anteriores</p>
+                </div>
+
+                <div class="widget widget-lg">
+                    <div class="widget-header">
+                        <h2><i class="fas fa-archive"></i> Escaneos Almacenados</h2>
+                    </div>
+                    <div id="full-history-list" class="history-table">
+                        <div class="empty-state">
+                            <i class="fas fa-inbox"></i>
+                            <p>No hay historial de escaneos</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="reports-section" class="content-section">
+                <div class="section-header reports-hero">
+                    <div>
+                        <span class="eyebrow">ENTREGABLES PROFESIONALES</span>
+                        <h1>Reportes que convierten evidencia en decisiones.</h1>
+                        <p>Informes ejecutivos y técnicos listos para compartir, imprimir y remediar.</p>
+                    </div>
+                    <div class="report-standard-stack">
+                        <span>OWASP WSTG</span>
+                        <span>NIST 800-115</span>
+                        <span>PTES</span>
+                        <span>CVSS v4 ready</span>
+                    </div>
+                </div>
+
+                <div class="report-capabilities">
+                    <article>
+                        <i class="fas fa-briefcase"></i>
+                        <div><strong>Resumen ejecutivo</strong><span>Riesgo global, contexto y prioridades.</span></div>
+                    </article>
+                    <article>
+                        <i class="fas fa-list-check"></i>
+                        <div><strong>Plan de remediación</strong><span>Acciones priorizadas y responsables sugeridos.</span></div>
+                    </article>
+                    <article>
+                        <i class="fas fa-fingerprint"></i>
+                        <div><strong>Evidencia reproducible</strong><span>Hallazgos, comandos y trazabilidad técnica.</span></div>
+                    </article>
+                    <article>
+                        <i class="fas fa-file-pdf"></i>
+                        <div><strong>PDF listo para entregar</strong><span>Paginación, anexos y clasificación documental.</span></div>
+                    </article>
+                </div>
+
+                <div class="widget widget-lg report-generator-panel">
+                    <div class="widget-header report-list-header">
+                        <div>
+                            <span class="panel-step">SESIONES DISPONIBLES</span>
+                            <h2>Generador de informes</h2>
+                        </div>
+                        <span class="report-security-note"><i class="fas fa-lock"></i> Contenido confidencial</span>
+                    </div>
+                    <div id="reports-list" class="history-table">
+                        <div class="empty-state">
+                            <i class="fas fa-file-export"></i>
+                            <p>No hay sesiones disponibles para reportar</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="exploits-section" class="content-section">
+                <div class="section-header">
+                    <h1>Exploit Manager</h1>
+                    <p>Biblioteca de payloads generados por IA, asociados por objetivo y revisables antes de ejecutar</p>
+                </div>
+
+                <div class="dashboard-grid">
+                    <div class="widget widget-lg">
+                        <div class="widget-header">
+                            <h2><i class="fas fa-folder-tree"></i> Payloads por objetivo</h2>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Filtrar por IP / dominio</label>
+                                <input type="text" id="exploit-filter-target" class="form-input" placeholder="Ej: 192.168.100.1">
+                            </div>
+                            <div class="form-group">
+                                <label>&nbsp;</label>
+                                <button type="button" class="btn btn-secondary" id="refresh-exploit-library-btn">
+                                    <i class="fas fa-sync-alt"></i> Actualizar
+                                </button>
+                            </div>
+                        </div>
+                        <div id="exploit-library-list" class="log-list">
+                            <div class="empty-state">
+                                <i class="fas fa-code"></i>
+                                <p>No hay payloads guardados todavía</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="widget widget-lg">
+                        <div class="widget-header">
+                            <h2><i class="fas fa-folder-open"></i> Código generado</h2>
+                            <button type="button" class="btn btn-sm btn-secondary" id="refresh-generated-code-btn">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                        <div id="generated-code-list" class="log-list">
+                            <div class="empty-state"><i class="fas fa-code"></i><p>Sin código generado aún</p></div>
+                        </div>
+                    </div>
+
+                    <div class="widget widget-lg">
+                        <div class="widget-header">
+                            <h2><i class="fas fa-code-branch"></i> Editor de exploit</h2>
+                        </div>
+                        <form id="exploit-editor-form" class="full-form">
+                            <input type="hidden" id="exploit-artifact-id">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Objetivo</label>
+                                    <input type="text" id="exploit-target" class="form-input" placeholder="192.168.100.1">
+                                </div>
+                                <div class="form-group">
+                                    <label>CVE / Referencia</label>
+                                    <input type="text" id="exploit-cve" class="form-input" placeholder="CVE-YYYY-NNNN">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Título</label>
+                                    <input type="text" id="exploit-title" class="form-input" placeholder="PoC de validación">
+                                </div>
+                                <div class="form-group">
+                                    <label>Lenguaje</label>
+                                    <select id="exploit-language" class="form-input">
+                                        <option value="python">Python</option>
+                                        <option value="bash">Bash</option>
+                                        <option value="ruby">Ruby</option>
+                                        <option value="perl">Perl</option>
+                                        <option value="text">Texto / notas</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Nombre de archivo</label>
+                                <input type="text" id="exploit-filename" class="form-input" placeholder="exploit_router_check.py">
+                            </div>
+                        <div class="form-group">
+                                <label>Código <button type="button" class="btn btn-secondary btn-sm" id="copy-code-btn" title="Copiar código al portapapeles">
+                                    <i class="fas fa-copy"></i> Copiar
+                                </button></label>
+                                <textarea id="exploit-code" class="form-input code-editor" rows="16" spellcheck="false" placeholder="El payload o PoC aparecerá aquí"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Notas</label>
+                                <textarea id="exploit-notes" class="form-input" rows="4" placeholder="Precondiciones, uso esperado, fuentes, limitaciones"></textarea>
+                            </div>
+                            <div class="settings-actions">
+                                <button type="button" class="btn btn-secondary" id="new-exploit-artifact-btn">
+                                    <i class="fas fa-plus"></i> Nuevo
+                                </button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Guardar
+                                </button>
+                                <button type="button" class="btn btn-secondary" id="analyze-exploit-btn">
+                                    <i class="fas fa-brain"></i> Analizar con IA
+                                </button>
+                                <button type="button" class="btn btn-danger" id="delete-exploit-btn">
+                                    <i class="fas fa-trash"></i> Eliminar
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="widget widget-lg">
+                        <div class="widget-header">
+                            <h2><i class="fas fa-wand-magic-sparkles"></i> IA de exploits</h2>
+                        </div>
+                        <div class="form-group">
+                            <label>Pedir generación o ajustes</label>
+                            <textarea id="exploit-ai-prompt" class="form-input" rows="5" placeholder="Ej: Busca una forma de validar este CVE con un PoC no destructivo y parametrizado para el objetivo"></textarea>
+                        </div>
+                        <div class="settings-actions">
+                            <button type="button" class="btn btn-primary" id="exploit-ai-generate-btn">
+                                <i class="fas fa-magic"></i> Pedir a la IA
+                            </button>
+                            <button type="button" class="btn btn-secondary" id="apply-ai-code-btn">
+                                <i class="fas fa-code"></i> Aplicar código
+                            </button>
+                            <button type="button" class="btn btn-secondary" id="copy-ai-code-btn" style="display: none;">
+                                <i class="fas fa-copy"></i> Copiar código IA
+                            </button>
+                        </div>
+                        <div class="ai-response-container">
+                            <pre id="exploit-ai-response" class="terminal-output code-block">La respuesta de la IA aparecerá aquí.</pre>
+                        </div>
+                    </div>
+
+                    <div class="widget widget-lg">
+                        <div class="widget-header">
+                            <h2><i class="fas fa-play"></i> Ejecución controlada</h2>
+                        </div>
+                        <div class="form-group">
+                            <label>Argumentos</label>
+                            <input type="text" id="exploit-run-args" class="form-input" placeholder="Ej: --target 192.168.100.1 --port 80">
+                        </div>
+                        <div class="settings-actions">
+                            <button type="button" class="btn btn-primary" id="run-exploit-artifact-btn">
+                                <i class="fas fa-play"></i> Ejecutar payload guardado
+                            </button>
+                        </div>
+                        <pre id="exploit-run-output" class="terminal-output">La salida de ejecución aparecerá aquí.</pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sessions Section -->
+            <section id="sessions-section" class="content-section">
+                <div class="section-header">
+                    <h1>Sesiones Activas</h1>
+                    <p>Gestiona sesiones meterpreter, bindshell y terminales interactivas</p>
+                    <div class="section-actions">
+                        <span class="badge" id="sessions-count-badge">0 sesiones</span>
+                        <button type="button" id="sessions-refresh-btn" class="btn btn-sm btn-secondary">
+                            <i class="fas fa-sync-alt"></i> Actualizar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="sessions-layout">
+                    <!-- Left: Session List -->
+                    <div class="sessions-list-panel">
+                        <div class="sessions-list-header">
+                            <input type="text" id="sessions-filter" class="form-input form-input-sm" placeholder="Filtrar sesiones...">
+                            <span id="sessions-count" class="sessions-count-label">0</span>
+                            <button type="button" class="btn btn-sm btn-primary" id="sessions-new-btn" title="Nueva sesión">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                        <div id="sessions-list" class="sessions-list">
+                            <div class="empty-state"><i class="fas fa-plug"></i><p>No hay sesiones activas</p><small>Lanza un exploit o escaneo para obtener una sesión</small></div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Terminal -->
+                    <div class="sessions-terminal-panel">
+                        <div id="sessions-terminal-header" class="sessions-terminal-header">
+                            <span id="sessions-terminal-title"><i class="fas fa-terminal"></i> Terminal</span>
+                            <div class="sessions-terminal-actions">
+                                <button type="button" id="sessions-clear-btn" class="btn btn-sm btn-secondary" title="Limpiar pantalla">
+                                    <i class="fas fa-eraser"></i>
+                                </button>
+                                <button type="button" id="sessions-disconnect-btn" class="btn btn-sm btn-danger" disabled title="Desconectar sesión">
+                                    <i class="fas fa-plug"></i> Desconectar
+                                </button>
+                            </div>
+                        </div>
+                        <div id="sessions-terminal-body" class="sessions-terminal-body">
+                            <div class="empty-state" id="sessions-terminal-empty">
+                                <i class="fas fa-hand-pointer"></i>
+                                <p>Selecciona una sesión para interactuar</p>
+                            </div>
+                            <div id="sessions-terminal-output" class="sessions-terminal-output" style="display:none"></div>
+                        </div>
+                        <div id="sessions-terminal-input-row" class="sessions-terminal-input" style="display:none">
+                            <span class="sessions-terminal-prompt" id="sessions-prompt">$</span>
+                            <input type="text" id="sessions-command-input" class="form-input sessions-cmd-input" placeholder="Escribe un comando..." autofocus spellcheck="false" autocomplete="off">
+                            <button type="button" id="sessions-send-btn" class="btn btn-primary btn-sm" title="Enviar (Enter)">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Agent v2 Section -->
+            <section id="agent-section" class="content-section">
+                <div class="section-header">
+                    <h1>Agente Autónomo v2</h1>
+                    <p>La IA decide qué herramientas usar, cuándo y cómo — sin restricciones predefinidas</p>
+                </div>
+                <div class="dashboard-grid">
+                    <div class="widget widget-lg">
+                        <div class="widget-header">
+                            <h2><i class="fas fa-rocket"></i> Lanzar agente</h2>
+                        </div>
+                        <form id="agent-form" class="full-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Objetivo</label>
+                                    <input type="text" id="agent-target" class="form-input" placeholder="192.168.1.1" required>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>LHOST (tu IP para reverse shells)</label>
+                                    <input type="text" id="agent-lhost" class="form-input" placeholder="Auto-detect">
+                                </div>
+                                <div class="form-group">
+                                    <label>LPORT</label>
+                                    <input type="number" id="agent-lport" class="form-input" value="4444">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Datos de reconocimiento (opcional, pega salida de nmap)</label>
+                                <textarea id="agent-recon" class="form-input" rows="6" placeholder="Si ya tienes datos de reconocimiento, pégalos aquí para que el agente trabaje sobre ellos"></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-play"></i> Iniciar agente autónomo
+                            </button>
+                        </form>
+                        <div id="agent-progress" style="display:none;margin-top:16px">
+                            <div class="progress-bar"><div class="progress-fill"></div></div>
+                            <p class="progress-text">Agente trabajando... <span id="agent-scan-id"></span></p>
+                        </div>
+                    </div>
+                    <div class="widget widget-lg">
+                        <div class="widget-header">
+                            <h2><i class="fas fa-stream"></i> Transcripción del agente</h2>
+                        </div>
+                        <div id="agent-transcript" class="log-list">
+                            <div class="empty-state"><i class="fas fa-robot"></i><p>El transcripto aparecerá aquí</p></div>
+                        </div>
+                    </div>
+                    <div class="widget widget-lg">
+                        <div class="widget-header">
+                            <h2><i class="fas fa-terminal"></i> Comando manual al agente</h2>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <input type="text" id="agent-manual-cmd" class="form-input" placeholder="Ej: nmap -sV 192.168.1.1">
+                            </div>
+                            <button type="button" class="btn btn-primary" id="agent-manual-btn">
+                                <i class="fas fa-play"></i> Ejecutar
+                            </button>
+                        </div>
+                        <pre id="agent-manual-output" class="terminal-output">Salida del comando manual</pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- AI Chat Section -->
+            <section id="chat-section" class="content-section">
+                <div class="section-header">
+                    <span class="eyebrow">INTELIGENCIA ARTIFICIAL</span>
+                    <h1>Chat con contexto completo</h1>
+                    <p>Toda la información del sistema, sesiones activas, CVEs y transcripciones del agente en un solo chat</p>
+                </div>
+
+                <div class="chat-interface">
+                    <div class="chat-main">
+                        <div class="chat-messages" id="chat-messages">
+                            <div class="empty-state" id="chat-empty">
+                                <i class="fas fa-comment-dots"></i>
+                                <p>Inicia una conversación con la IA. El contexto del sistema se incluye automáticamente.</p>
+                            </div>
+                        </div>
+                        <div class="chat-input-area">
+                            <textarea id="chat-input" rows="2" placeholder="Pregunta sobre el sistema, un escaneo, un CVE, o pide ayuda para explotar..."></textarea>
+                            <button class="btn btn-primary" id="chat-send-btn"><i class="fas fa-paper-plane"></i></button>
+                            <button class="btn btn-secondary" id="chat-clear-btn"><i class="fas fa-eraser"></i></button>
+                        </div>
+                    </div>
+                    <div class="chat-sidebar">
+                        <div class="chat-context-panel">
+                            <h3><i class="fas fa-brain"></i> Contexto activo</h3>
+                            <div class="chat-context-item" onclick="showSection('dashboard')">
+                                <i class="fas fa-chart-line"></i>
+                                <span>Dashboard</span>
+                                <small id="ctx-dashboard">activo</small>
+                            </div>
+                            <div class="chat-context-item" onclick="showSection('scan-detail')">
+                                <i class="fas fa-terminal"></i>
+                                <span>Escaneo activo</span>
+                                <small id="ctx-scan">ninguno</small>
+                            </div>
+                            <div class="chat-context-item" onclick="showSection('agent')">
+                                <i class="fas fa-robot"></i>
+                                <span>Agente autónomo</span>
+                                <small id="ctx-agent">inactivo</small>
+                            </div>
+                            <div class="chat-context-item" onclick="showSection('cve')">
+                                <i class="fas fa-shield-virus"></i>
+                                <span>CVEs detectados</span>
+                                <small id="ctx-cve">0</small>
+                            </div>
+                            <div class="chat-context-item" onclick="showSection('explorer')">
+                                <i class="fas fa-folder-open"></i>
+                                <span>Explorador</span>
+                                <small id="ctx-explorer">desconectado</small>
+                            </div>
+                            <div class="chat-context-item" onclick="showSection('system')">
+                                <i class="fas fa-server"></i>
+                                <span>Sistema</span>
+                                <small id="ctx-system">online</small>
+                            </div>
+                        </div>
+                        <div class="chat-history" id="chat-history">
+                            <button class="btn btn-primary btn-sm chat-new-btn" id="chat-new-btn">
+                                <i class="fas fa-plus"></i> Nueva conversación
+                            </button>
+                            <div id="chat-history-list">
+                                <div class="empty-state" style="min-height:60px">
+                                    <p style="font-size:0.7rem">Sin historial</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tools Section -->
+            <section id="tools-section" class="content-section">
+                <div class="section-header tools-hero">
+                    <div>
+                        <span class="eyebrow">HERRAMIENTAS DE EXPLOTACIÓN</span>
+                        <h1>Caja de herramientas ofensivas</h1>
+                        <p>Escaneo, fuerza bruta, shells, pivoting y más — integrado en un solo panel</p>
+                    </div>
+                </div>
+
+                <div class="tool-tabs">
+                    <button class="tool-tab active" data-tab="portscan"><i class="fas fa-network-wired"></i> Port Scan</button>
+                    <button class="tool-tab" data-tab="webscan"><i class="fas fa-globe"></i> Web Scan</button>
+                    <button class="tool-tab" data-tab="bruteforce"><i class="fas fa-key"></i> Brute Force</button>
+                    <button class="tool-tab" data-tab="privesc"><i class="fas fa-arrow-up"></i> Priv Esc</button>
+                    <button class="tool-tab" data-tab="persistence"><i class="fas fa-chain"></i> Persistencia</button>
+                    <button class="tool-tab" data-tab="lateral"><i class="fas fa-sitemap"></i> Mov. Lateral</button>
+                    <button class="tool-tab" data-tab="pivot"><i class="fas fa-code-branch"></i> Pivoting</button>
+                    <button class="tool-tab" data-tab="exfil"><i class="fas fa-upload"></i> Exfiltración</button>
+                    <button class="tool-tab" data-tab="logclean"><i class="fas fa-eraser"></i> Log Cleaner</button>
+                    <button class="tool-tab" data-tab="shellgen"><i class="fas fa-terminal"></i> Reverse Shell</button>
+                </div>
+
+                <!-- Port Scan Panel -->
+                <div class="tool-panel active" id="panel-portscan">
+                    <div class="widget">
+                        <div class="widget-header"><h2><i class="fas fa-network-wired"></i> Escaneo de Puertos</h2></div>
+                        <div class="form-row">
+                            <div class="form-group"><label>Objetivo</label><input type="text" id="ps-target" class="form-input" placeholder="192.168.1.1"></div>
+                            <div class="form-group"><label>Puertos</label><input type="text" id="ps-ports" class="form-input" placeholder="1-1000 ó 22,80,443"></div>
+                            <div class="form-group"><label>Tipo</label><select id="ps-type" class="form-input"><option value="quick">Rápido</option><option value="standard">Estándar</option><option value="deep">Profundo</option></select></div>
+                        </div>
+                        <button class="btn btn-primary" id="ps-run-btn"><i class="fas fa-play"></i> Escanear</button>
+                        <pre id="ps-output" class="tool-output" style="margin-top:12px">Listo para escanear.</pre>
+                    </div>
+                </div>
+
+                <!-- Web Scan Panel -->
+                <div class="tool-panel" id="panel-webscan">
+                    <div class="widget">
+                        <div class="widget-header"><h2><i class="fas fa-globe"></i> Escaneo Web</h2></div>
+                        <div class="form-row">
+                            <div class="form-group"><label>Objetivo</label><input type="text" id="ws-target" class="form-input" placeholder="https://example.com"></div>
+                            <div class="form-group"><label>Tipo</label><select id="ws-type" class="form-input"><option value="dirbust">Directory Busting</option><option value="fingerprint">Fingerprinting</option><option value="full">Completo</option></select></div>
+                        </div>
+                        <button class="btn btn-primary" id="ws-run-btn"><i class="fas fa-play"></i> Escanear</button>
+                        <pre id="ws-output" class="tool-output" style="margin-top:12px">Listo para escanear.</pre>
+                    </div>
+                </div>
+
+                <!-- Brute Force Panel -->
+                <div class="tool-panel" id="panel-bruteforce">
+                    <div class="widget">
+                        <div class="widget-header"><h2><i class="fas fa-key"></i> Fuerza Bruta</h2></div>
+                        <div class="form-row">
+                            <div class="form-group"><label>Objetivo</label><input type="text" id="bf-target" class="form-input" placeholder="192.168.1.1"></div>
+                            <div class="form-group"><label>Servicio</label><select id="bf-service" class="form-input"><option value="ssh">SSH</option><option value="ftp">FTP</option><option value="mysql">MySQL</option><option value="http-post">HTTP POST</option><option value="smb">SMB</option><option value="rdp">RDP</option></select></div>
+                            <div class="form-group"><label>Usuario</label><input type="text" id="bf-user" class="form-input" placeholder="root (opcional)"></div>
+                        </div>
+                        <button class="btn btn-primary" id="bf-run-btn"><i class="fas fa-play"></i> Iniciar</button>
+                        <pre id="bf-output" class="tool-output" style="margin-top:12px">Listo para ataque.</pre>
+                    </div>
+                </div>
+
+                <!-- PrivEsc Panel -->
+                <div class="tool-panel" id="panel-privesc">
+                    <div class="widget">
+                        <div class="widget-header"><h2><i class="fas fa-arrow-up"></i> Escalación de Privilegios</h2></div>
+                        <div class="form-row">
+                            <div class="form-group"><label>Scan ID (sesión activa)</label><input type="text" id="pe-scan-id" class="form-input" placeholder="abc123"></div>
+                            <div class="form-group"><label>Sistema</label><select id="pe-os" class="form-input"><option value="linux">Linux</option><option value="windows">Windows</option></select></div>
+                        </div>
+                        <button class="btn btn-primary" id="pe-run-btn"><i class="fas fa-play"></i> Enumerar</button>
+                        <pre id="pe-output" class="tool-output" style="margin-top:12px">Listo para enumerar.</pre>
+                    </div>
+                </div>
+
+                <!-- Persistence Panel -->
+                <div class="tool-panel" id="panel-persistence">
+                    <div class="widget">
+                        <div class="widget-header"><h2><i class="fas fa-chain"></i> Persistencia</h2></div>
+                        <div class="form-row">
+                            <div class="form-group"><label>Scan ID</label><input type="text" id="per-scan-id" class="form-input" placeholder="abc123"></div>
+                            <div class="form-group"><label>Método</label><select id="per-method" class="form-input"><option value="cron_reverse">Cron (reverse)</option><option value="ssh_key">SSH Key</option><option value="systemd">Systemd</option><option value="scheduled_task">Scheduled Task (Win)</option></select></div>
+                            <div class="form-group"><label>LHOST</label><input type="text" id="per-lhost" class="form-input" placeholder="Tu IP"></div>
+                            <div class="form-group"><label>LPORT</label><input type="number" id="per-lport" class="form-input" value="4444"></div>
+                        </div>
+                        <button class="btn btn-primary" id="per-run-btn"><i class="fas fa-play"></i> Instalar</button>
+                        <pre id="per-output" class="tool-output" style="margin-top:12px">Listo.</pre>
+                    </div>
+                </div>
+
+                <!-- Lateral Movement Panel -->
+                <div class="tool-panel" id="panel-lateral">
+                    <div class="widget">
+                        <div class="widget-header"><h2><i class="fas fa-sitemap"></i> Movimiento Lateral</h2></div>
+                        <div class="form-row">
+                            <div class="form-group"><label>Scan ID</label><input type="text" id="lat-scan-id" class="form-input" placeholder="abc123"></div>
+                            <div class="form-group"><label>Objetivo</label><input type="text" id="lat-target" class="form-input" placeholder="192.168.1.2"></div>
+                            <div class="form-group"><label>Método</label><select id="lat-method" class="form-input"><option value="ssh">SSH</option><option value="psexec">PsExec</option><option value="wmic">WMIC</option></select></div>
+                            <div class="form-group"><label>Usuario</label><input type="text" id="lat-user" class="form-input" placeholder="admin"></div>
+                            <div class="form-group"><label>Password</label><input type="password" id="lat-pass" class="form-input" placeholder="********"></div>
+                        </div>
+                        <button class="btn btn-primary" id="lat-run-btn"><i class="fas fa-play"></i> Ejecutar</button>
+                        <pre id="lat-output" class="tool-output" style="margin-top:12px">Listo.</pre>
+                    </div>
+                </div>
+
+                <!-- Pivoting Panel -->
+                <div class="tool-panel" id="panel-pivot">
+                    <div class="widget">
+                        <div class="widget-header"><h2><i class="fas fa-code-branch"></i> Pivoting / Túneles</h2></div>
+                        <div class="form-row">
+                            <div class="form-group"><label>Scan ID</label><input type="text" id="piv-scan-id" class="form-input" placeholder="abc123"></div>
+                            <div class="form-group"><label>Acción</label><select id="piv-action" class="form-input"><option value="start">Iniciar túnel</option><option value="stop">Detener túnel</option><option value="add_route">Añadir ruta</option></select></div>
+                            <div class="form-group"><label>Target</label><input type="text" id="piv-target" class="form-input" placeholder="10.0.0.0/24"></div>
+                            <div class="form-group"><label>Puerto</label><input type="number" id="piv-port" class="form-input" value="1080"></div>
+                        </div>
+                        <button class="btn btn-primary" id="piv-run-btn"><i class="fas fa-play"></i> Ejecutar</button>
+                        <pre id="piv-output" class="tool-output" style="margin-top:12px">Listo.</pre>
+                    </div>
+                </div>
+
+                <!-- Exfil Panel -->
+                <div class="tool-panel" id="panel-exfil">
+                    <div class="widget">
+                        <div class="widget-header"><h2><i class="fas fa-upload"></i> Exfiltración de Datos</h2></div>
+                        <div class="form-row">
+                            <div class="form-group"><label>Scan ID</label><input type="text" id="exf-scan-id" class="form-input" placeholder="abc123"></div>
+                            <div class="form-group"><label>Archivo</label><input type="text" id="exf-path" class="form-input" placeholder="/etc/passwd"></div>
+                            <div class="form-group"><label>Método</label><select id="exf-method" class="form-input"><option value="http">HTTP</option><option value="dns">DNS</option><option value="smb">SMB</option></select></div>
+                            <div class="form-group"><label>LHOST</label><input type="text" id="exf-lhost" class="form-input" placeholder="Tu IP"></div>
+                        </div>
+                        <button class="btn btn-primary" id="exf-run-btn"><i class="fas fa-play"></i> Exfiltrar</button>
+                        <pre id="exf-output" class="tool-output" style="margin-top:12px">Listo.</pre>
+                    </div>
+                </div>
+
+                <!-- Log Cleaner Panel -->
+                <div class="tool-panel" id="panel-logclean">
+                    <div class="widget">
+                        <div class="widget-header"><h2><i class="fas fa-eraser"></i> Limpieza de Logs</h2></div>
+                        <div class="form-row">
+                            <div class="form-group"><label>Scan ID</label><input type="text" id="lc-scan-id" class="form-input" placeholder="abc123"></div>
+                            <div class="form-group"><label>Logs a limpiar</label><input type="text" id="lc-targets" class="form-input" placeholder="/var/log/auth.log, /var/log/syslog"></div>
+                        </div>
+                        <button class="btn btn-primary" id="lc-run-btn"><i class="fas fa-play"></i> Limpiar</button>
+                        <pre id="lc-output" class="tool-output" style="margin-top:12px">Listo.</pre>
+                    </div>
+                </div>
+
+                <!-- Reverse Shell Generator Panel -->
+                <div class="tool-panel" id="panel-shellgen">
+                    <div class="widget">
+                        <div class="widget-header"><h2><i class="fas fa-terminal"></i> Generador de Reverse Shell</h2></div>
+                        <div class="form-row">
+                            <div class="form-group"><label>LHOST</label><input type="text" id="sg-lhost" class="form-input" placeholder="192.168.1.10"></div>
+                            <div class="form-group"><label>LPORT</label><input type="number" id="sg-lport" class="form-input" value="4444"></div>
+                        </div>
+                        <div class="shell-types">
+                            <button class="shell-type-btn active" data-shell="bash">Bash</button>
+                            <button class="shell-type-btn" data-shell="python">Python</button>
+                            <button class="shell-type-btn" data-shell="php">PHP</button>
+                            <button class="shell-type-btn" data-shell="ruby">Ruby</button>
+                            <button class="shell-type-btn" data-shell="perl">Perl</button>
+                            <button class="shell-type-btn" data-shell="nc">Netcat</button>
+                            <button class="shell-type-btn" data-shell="powershell">PowerShell</button>
+                            <button class="shell-type-btn" data-shell="socat">Socat</button>
+                        </div>
+                        <label class="check-row compact" style="margin:0.5rem 0"><input type="checkbox" id="sg-obfuscate"> Ofuscar código</label>
+                        <button class="btn btn-primary" id="sg-generate-btn"><i class="fas fa-wand-magic-sparkles"></i> Generar</button>
+                        <pre id="sg-output" class="tool-output" style="margin-top:12px">Selecciona tipo y genera.</pre>
+                        <button class="btn btn-secondary btn-sm" id="sg-copy-btn" style="margin-top:6px;display:none"><i class="fas fa-copy"></i> Copiar</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- CVE Intelligence Section -->
+            <section id="cve-section" class="content-section">
+                <div class="section-header">
+                    <h1>CVE Intelligence Engine</h1>
+                    <p>Detección automática de CVEs, generación de payloads y búsqueda de exploits</p>
+                </div>
+                <div class="dashboard-grid">
+                    <div class="widget widget-lg">
+                        <div class="widget-header">
+                            <h2><i class="fas fa-search"></i> Escanear CVE por servicio</h2>
+                        </div>
+                        <form id="cve-form" class="full-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Objetivo</label>
+                                    <input type="text" id="cve-target" class="form-input" placeholder="192.168.1.1">
+                                </div>
+                                <div class="form-group">
+                                    <label>Servicio</label>
+                                    <input type="text" id="cve-service" class="form-input" placeholder="apache, nginx, openssh, vsftpd">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Versión</label>
+                                    <input type="text" id="cve-version" class="form-input" placeholder="2.4.49, 7.0, 8.1">
+                                </div>
+                                <div class="form-group">
+                                    <label>Puerto</label>
+                                    <input type="text" id="cve-port" class="form-input" placeholder="80">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-radar"></i> Buscar CVEs y generar exploit
+                            </button>
+                        </form>
+                    </div>
+                    <div class="widget widget-lg">
+                        <div class="widget-header">
+                            <h2><i class="fas fa-bug"></i> CVEs encontrados</h2>
+                        </div>
+                        <div id="cve-results" class="log-list">
+                            <div class="empty-state"><i class="fas fa-shield"></i><p>Busca un servicio para ver CVEs</p></div>
+                        </div>
+                    </div>
+                    <div class="widget widget-lg">
+                        <div class="widget-header">
+                            <h2><i class="fas fa-file-code"></i> Exploit generado</h2>
+                        </div>
+                        <pre id="cve-exploit-code" class="terminal-output code-block">El código del exploit aparecerá aquí.</pre>
+                        <div class="settings-actions" style="margin-top:8px">
+                            <button type="button" class="btn btn-secondary" id="cve-copy-btn"><i class="fas fa-copy"></i> Copiar</button>
+                            <button type="button" class="btn btn-primary" id="cve-save-btn"><i class="fas fa-save"></i> Guardar en biblioteca</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Victim Explorer Section -->
+            <section id="explorer-section" class="content-section">
+                <div class="section-header">
+                    <h1>Explorador de Víctima</h1>
+                    <p>Navega archivos, busca datos sensibles, explora bases de datos y descarga evidencias</p>
+                </div>
+                <div class="dashboard-grid">
+                    <div class="widget widget-lg">
+                        <div class="widget-header">
+                            <h2><i class="fas fa-folder-tree"></i> Sistema de archivos</h2>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Scan ID (con sesión activa)</label>
+                                <input type="text" id="explorer-scan-id" class="form-input" placeholder="abc12345">
+                            </div>
+                            <button type="button" class="btn btn-secondary" id="explorer-connect-btn">
+                                <i class="fas fa-plug"></i> Conectar
+                            </button>
+                        </div>
+                        <div id="explorer-toolbar" style="display:none">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <input type="text" id="explorer-path" class="form-input mono-input" value="/" placeholder="/ruta/a/explorar">
+                                </div>
+                                <button type="button" class="btn btn-primary btn-sm" id="explorer-ls-btn">
+                                    <i class="fas fa-list"></i> ls
+                                </button>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <input type="text" id="explorer-file-path" class="form-input" placeholder="/etc/passwd">
+                                </div>
+                                <button type="button" class="btn btn-primary btn-sm" id="explorer-cat-btn">
+                                    <i class="fas fa-file-lines"></i> cat
+                                </button>
+                                <button type="button" class="btn btn-secondary btn-sm" id="explorer-dl-btn">
+                                    <i class="fas fa-download"></i> Descargar
+                                </button>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <input type="text" id="explorer-search-pattern" class="form-input" placeholder="pattern (ej: *.db)">
+                                </div>
+                                <button type="button" class="btn btn-secondary btn-sm" id="explorer-search-btn">
+                                    <i class="fas fa-search"></i> Buscar
+                                </button>
+                                <button type="button" class="btn btn-secondary btn-sm" id="explorer-grep-btn">
+                                    <i class="fas fa-file-code"></i> Grep
+                                </button>
+                            </div>
+                            <div class="form-row">
+                                <button type="button" class="btn btn-secondary btn-sm" id="explorer-dbs-btn">
+                                    <i class="fas fa-database"></i> Buscar DBs
+                                </button>
+                                <button type="button" class="btn btn-secondary btn-sm" id="explorer-sensitive-btn">
+                                    <i class="fas fa-shield-halved"></i> Datos sensibles
+                                </button>
+                                <button type="button" class="btn btn-secondary btn-sm" id="explorer-sysinfo-btn">
+                                    <i class="fas fa-desktop"></i> Info sistema
+                                </button>
+                            </div>
+                        </div>
+                        <pre id="explorer-output" class="terminal-output" style="max-height:500px">Conecta una sesión para empezar.</pre>
+                        <div id="explorer-download-list" class="log-list" style="margin-top:8px"></div>
+                    </div>
+
+                    <div class="widget widget-lg">
+                        <div class="widget-header">
+                            <h2><i class="fas fa-database"></i> Consulta de bases de datos</h2>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <select id="explorer-db-type" class="form-input">
+                                    <option value="mysql">MySQL</option>
+                                    <option value="postgres">PostgreSQL</option>
+                                    <option value="sqlite">SQLite</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <input type="text" id="explorer-db-host" class="form-input" placeholder="localhost">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <input type="text" id="explorer-db-user" class="form-input" placeholder="root">
+                            </div>
+                            <div class="form-group">
+                                <input type="password" id="explorer-db-pass" class="form-input" placeholder="password">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <input type="text" id="explorer-db-name" class="form-input" placeholder="DB name / path (para SQLite)">
+                            </div>
+                            <div class="form-group">
+                                <input type="text" id="explorer-db-query" class="form-input" value="SHOW DATABASES;">
+                            </div>
+                            <button type="button" class="btn btn-primary btn-sm" id="explorer-db-query-btn">
+                                <i class="fas fa-play"></i> Query
+                            </button>
+                        </div>
+                        <pre id="explorer-db-output" class="terminal-output">Resultado de la consulta.</pre>
+                    </div>
+
+                    <div class="widget widget-lg">
+                        <div class="widget-header">
+                            <h2><i class="fas fa-download"></i> Descargas disponibles</h2>
+                        </div>
+                        <div id="explorer-downloads-section" class="log-list">
+                            <div class="empty-state"><i class="fas fa-download"></i><p>No hay descargas aún</p></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- System Section -->
+            <section id="system-section" class="content-section">
+                <div class="section-header system-hero">
+                    <div>
+                        <span class="eyebrow">DIAGNÓSTICO OPERATIVO</span>
+                        <h1>Conoce exactamente qué está listo.</h1>
+                        <p>Estado del servidor, acceso en red y disponibilidad real de cada herramienta.</p>
+                    </div>
+                    <button type="button" class="btn btn-primary" id="refresh-system-health">
+                        <i class="fas fa-rotate"></i> Actualizar diagnóstico
+                    </button>
+                </div>
+
+                <div class="system-overview">
+                    <article class="system-health-card">
+                        <span class="system-health-icon"><i class="fas fa-server"></i></span>
+                        <div><span>Servidor</span><strong id="system-server-state">Comprobando…</strong><small id="system-platform">—</small></div>
+                    </article>
+                    <article class="system-health-card">
+                        <span class="system-health-icon"><i class="fas fa-database"></i></span>
+                        <div><span>Base de datos</span><strong id="system-db-state">Comprobando…</strong><small>Persistencia SQLite</small></div>
+                    </article>
+                    <article class="system-health-card">
+                        <span class="system-health-icon"><i class="fas fa-microchip"></i></span>
+                        <div><span>Motor IA</span><strong id="system-llm-state">Comprobando…</strong><small id="system-llm-model">—</small></div>
+                    </article>
+                    <article class="system-health-card">
+                        <span class="system-health-icon"><i class="fas fa-toolbox"></i></span>
+                        <div><span>Herramientas operativas</span><strong id="system-tools-count">0 / 0</strong><small>Externas + alternativas nativas</small></div>
+                    </article>
+                </div>
+
+                <div class="system-layout">
+                    <div class="widget">
+                        <div class="widget-header">
+                            <div><span class="panel-step">ACCESO LOCAL</span><h2>Red y servidor</h2></div>
+                        </div>
+                        <div class="network-access-card">
+                            <span class="network-pulse"><i class="fas fa-wifi"></i></span>
+                            <div>
+                                <small>DIRECCIÓN RECOMENDADA</small>
+                                <strong id="system-lan-primary">Detectando…</strong>
+                                <p>Usa esta dirección desde otro equipo conectado a la misma red.</p>
+                            </div>
+                            <button type="button" class="btn btn-secondary" id="copy-system-lan-url">
+                                <i class="fas fa-copy"></i> Copiar
+                            </button>
+                        </div>
+                        <div id="system-lan-urls" class="lan-url-list"></div>
+                    </div>
+
+                    <div class="widget">
+                        <div class="widget-header">
+                            <div><span class="panel-step">CAPACIDADES</span><h2>Inventario de herramientas</h2></div>
+                            <div class="tool-legend">
+                                <span><i class="available"></i> Externa</span>
+                                <span><i class="fallback"></i> Alternativa</span>
+                                <span><i class="missing"></i> No instalada</span>
+                            </div>
+                        </div>
+                        <div id="system-tools-grid" class="tools-grid">
+                            <div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Comprobando herramientas…</p></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Settings Section -->
+            <section id="settings-section" class="content-section">
+                <div class="section-header settings-hero">
+                    <div>
+                        <span class="eyebrow">INTELIGENCIA Y CONECTIVIDAD</span>
+                        <h1>Configura el motor de IA</h1>
+                        <p>Conecta NVIDIA NIM, un proveedor cloud o cualquier endpoint compatible con OpenAI.</p>
+                    </div>
+                    <span class="secure-config-badge"><i class="fas fa-lock"></i> Credenciales protegidas en la UI</span>
+                </div>
+
+                <form id="settings-form" class="settings-shell">
+                    <aside class="settings-rail">
+                        <div class="settings-rail-card provider-summary-card">
+                            <span class="settings-card-kicker">PROVEEDOR ACTIVO</span>
+                            <div class="provider-orb" id="provider-orb"><i class="fas fa-microchip"></i></div>
+                            <h2 id="settings-provider-name">Sin configurar</h2>
+                            <p id="settings-provider-description">Selecciona un proveedor para comenzar.</p>
+                            <div class="mini-data-row">
+                                <span>Protocolo</span>
+                                <strong id="settings-provider-protocol">—</strong>
+                            </div>
+                            <div class="mini-data-row">
+                                <span>Credencial</span>
+                                <strong id="settings-key-state">No configurada</strong>
+                            </div>
+                        </div>
+
+                        <div class="settings-rail-card">
+                            <span class="settings-card-kicker">ACCESO A PENTOOL</span>
+                            <div class="form-group">
+                                <label for="api-key-input">Clave interna de la aplicación</label>
+                                <div class="api-key-display">
+                                    <input type="password" id="api-key-input" class="form-input" placeholder="pentool-api-key">
+                                    <button type="button" class="btn btn-icon" id="show-api-key" aria-label="Mostrar clave de PenTool">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <label class="check-row">
+                                <input type="checkbox" name="notifications" checked>
+                                <span>Notificaciones operativas</span>
+                            </label>
+                            <label class="check-row">
+                                <input type="checkbox" name="auto-scan">
+                                <span>Auto-escaneo cada 24 horas</span>
+                            </label>
+                        </div>
+                    </aside>
+
+                    <div class="settings-workspace">
+                        <div class="widget settings-panel">
+                            <div class="widget-header settings-panel-header">
+                                <div>
+                                    <span class="panel-step">01 / CONEXIÓN</span>
+                                    <h2>Proveedor y endpoint</h2>
+                                </div>
+                                <span class="connection-pill" id="llm-connection-pill"><i></i> Sin verificar</span>
+                            </div>
+
+                            <div id="provider-presets" class="provider-presets" aria-label="Proveedores disponibles"></div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="llm-provider">Proveedor</label>
+                                    <select id="llm-provider" class="form-input">
+                                        <option value="nvidia_nim">NVIDIA NIM</option>
+                                        <option value="openai_compatible">OpenAI compatible</option>
+                                        <option value="ollama">Ollama</option>
+                                    </select>
+                                </div>
+                                <div class="form-group form-group-wide">
+                                    <label for="llm-api-base">Base URL</label>
+                                    <input type="url" id="llm-api-base" class="form-input mono-input" placeholder="https://integrate.api.nvidia.com/v1">
+                                    <small id="llm-base-hint" class="field-hint">Incluye el prefijo /v1 cuando tu proveedor lo requiera.</small>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="llm-api-key">API key del proveedor</label>
+                                <div class="api-key-display">
+                                    <input type="password" id="llm-api-key" class="form-input mono-input" autocomplete="new-password" placeholder="Pega una nueva clave o deja vacío para conservar la actual">
+                                    <button type="button" class="btn btn-icon" id="show-llm-api-key" aria-label="Mostrar clave del proveedor">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                <small id="llm-key-hint" class="field-hint">La clave guardada nunca vuelve a enviarse al navegador.</small>
+                                <label class="check-row compact danger-check">
+                                    <input type="checkbox" id="llm-clear-api-key">
+                                    <span>Eliminar la credencial guardada</span>
+                                </label>
+                            </div>
+
+                            <div class="model-picker">
+                                <div class="form-group">
+                                    <label for="llm-model-select">Modelos detectados</label>
+                                    <select id="llm-model-select" class="form-input">
+                                        <option value="">Conecta para listar modelos</option>
+                                    </select>
+                                </div>
+                                <span class="model-picker-divider">o</span>
+                                <div class="form-group">
+                                    <label for="llm-model-input">Modelo manual</label>
+                                    <input type="text" id="llm-model-input" class="form-input mono-input" placeholder="meta/llama-3.3-70b-instruct">
+                                </div>
+                            </div>
+
+                            <div class="connection-actions">
+                                <button type="button" class="btn btn-secondary" id="refresh-models-btn">
+                                    <i class="fas fa-layer-group"></i> Descubrir modelos
+                                </button>
+                                <button type="button" class="btn btn-primary" id="test-llm-btn">
+                                    <i class="fas fa-bolt"></i> Probar inferencia
+                                </button>
+                            </div>
+
+                            <div id="llm-config-status" class="diagnostic-card">
+                                <span class="diagnostic-icon"><i class="fas fa-wave-square"></i></span>
+                                <div>
+                                    <strong>Conexión sin verificar</strong>
+                                    <p>Ejecuta una prueba para medir la latencia y validar una respuesta real.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="widget settings-panel">
+                            <div class="widget-header settings-panel-header">
+                                <div>
+                                    <span class="panel-step">02 / GENERACIÓN</span>
+                                    <h2>Perfil de análisis</h2>
+                                </div>
+                                <span class="profile-badge">PENTEST PRECISO</span>
+                            </div>
+                            <div class="tuning-grid">
+                                <div class="form-group">
+                                    <label for="llm-temperature">Temperature <output id="temperature-value">0.7</output></label>
+                                    <input type="range" id="llm-temperature" class="range-input" min="0" max="2" step="0.1">
+                                    <small class="field-hint">Menor valor = respuestas más deterministas.</small>
+                                </div>
+                                <div class="form-group">
+                                    <label for="llm-top-p">Top P <output id="top-p-value">0.9</output></label>
+                                    <input type="range" id="llm-top-p" class="range-input" min="0" max="1" step="0.05">
+                                    <small class="field-hint">Controla la diversidad de tokens considerados.</small>
+                                </div>
+                                <div class="form-group">
+                                    <label for="llm-max-tokens">Máximo de tokens</label>
+                                    <input type="number" id="llm-max-tokens" class="form-input" min="1" max="131072" step="1">
+                                </div>
+                                <div class="form-group">
+                                    <label for="llm-timeout">Timeout</label>
+                                    <div class="input-with-suffix">
+                                        <input type="number" id="llm-timeout" class="form-input" min="5" max="3600" step="1">
+                                        <span>seg</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <details class="advanced-settings">
+                                <summary><i class="fas fa-sliders"></i> Compatibilidad avanzada</summary>
+                                <div class="advanced-settings-body">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="llm-chat-path">Ruta de chat</label>
+                                            <input type="text" id="llm-chat-path" class="form-input mono-input" value="/chat/completions">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="llm-models-path">Ruta de modelos</label>
+                                            <input type="text" id="llm-models-path" class="form-input mono-input" value="/models">
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="llm-api-key-header">Header de autenticación</label>
+                                            <input type="text" id="llm-api-key-header" class="form-input mono-input" value="Authorization">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="llm-api-key-prefix">Prefijo</label>
+                                            <input type="text" id="llm-api-key-prefix" class="form-input mono-input" value="Bearer">
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="llm-extra-headers">Headers extra (JSON)</label>
+                                            <textarea id="llm-extra-headers" class="form-input mono-input compact-textarea" placeholder='{"HTTP-Referer":"https://mi-app.local"}'></textarea>
+                                            <label class="check-row compact danger-check">
+                                                <input type="checkbox" id="llm-clear-extra-headers">
+                                                <span>Eliminar headers extra guardados</span>
+                                            </label>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="llm-extra-body">Body extra (JSON)</label>
+                                            <textarea id="llm-extra-body" class="form-input mono-input compact-textarea" placeholder='{"chat_template_kwargs":{"enable_thinking":false}}'></textarea>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="attacker-ip-input">IP del atacante / callback</label>
+                                        <input type="text" id="attacker-ip-input" class="form-input mono-input" placeholder="192.168.1.10">
+                                    </div>
+                                </div>
+                            </details>
+                        </div>
+
+                        <div class="settings-savebar">
+                            <div>
+                                <strong>Configuración del motor</strong>
+                                <span>Los cambios se aplicarán al próximo análisis.</span>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-check"></i> Guardar configuración
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Admin: User Management -->
+            <section id="admin-section" class="content-section">
+                <div class="section-header">
+                    <span class="eyebrow">ADMINISTRACIÓN</span>
+                    <h1>Gestión de Usuarios</h1>
+                    <p>Administra cuentas, roles y acceso al sistema</p>
+                </div>
+
+                <div class="admin-layout">
+                    <div class="admin-card">
+                        <div class="admin-card-header">
+                            <h3><i class="fas fa-users"></i> Usuarios</h3>
+                            <button type="button" class="btn btn-primary btn-sm" id="admin-add-user-btn">
+                                <i class="fas fa-plus"></i> Nuevo usuario
+                            </button>
+                        </div>
+                        <div class="admin-table-wrap">
+                            <table class="admin-table" id="admin-users-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Usuario</th>
+                                        <th>Email</th>
+                                        <th>Rol</th>
+                                        <th>Estado</th>
+                                        <th>Creado</th>
+                                        <th>Último acceso</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-users-body">
+                                    <tr><td colspan="8" class="empty-cell">Cargando usuarios...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Command center -->
+    <div id="command-modal" class="modal command-modal" role="dialog" aria-modal="true" aria-labelledby="command-title">
+        <div class="modal-content command-modal-content">
+            <div class="command-search">
+                <i class="fas fa-search"></i>
+                <input type="search" id="command-search-input" placeholder="Ir a una sección o ejecutar una acción…" autocomplete="off">
+                <kbd>ESC</kbd>
+            </div>
+            <div class="command-list" id="command-list">
+                <button type="button" class="command-item" data-command-section="scan">
+                    <span class="command-item-icon"><i class="fas fa-crosshairs"></i></span>
+                    <span><strong>Nuevo escaneo</strong><small>Configurar un nuevo objetivo</small></span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+                <button type="button" class="command-item" data-command-section="dashboard">
+                    <span class="command-item-icon"><i class="fas fa-grid-2"></i></span>
+                    <span><strong>Dashboard</strong><small>Volver al centro de operaciones</small></span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+                <button type="button" class="command-item" data-command-section="history">
+                    <span class="command-item-icon"><i class="fas fa-clock-rotate-left"></i></span>
+                    <span><strong>Historial</strong><small>Revisar escaneos anteriores</small></span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+                <button type="button" class="command-item" data-command-section="settings">
+                    <span class="command-item-icon"><i class="fas fa-microchip"></i></span>
+                    <span><strong>Configurar IA</strong><small>Proveedor, modelo y parámetros</small></span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+                <button type="button" class="command-item" data-command-section="admin">
+                    <span class="command-item-icon"><i class="fas fa-users-cog"></i></span>
+                    <span><strong>Admin</strong><small>Gestión de usuarios y roles</small></span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+                <button type="button" class="command-item" data-command-section="chat">
+                    <span class="command-item-icon"><i class="fas fa-comments"></i></span>
+                    <span><strong>Chat IA</strong><small>Conversación con contexto completo del sistema</small></span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+                <button type="button" class="command-item" data-command-section="agent">
+                    <span class="command-item-icon"><i class="fas fa-robot"></i></span>
+                    <span><strong>Agente IA</strong><small>Lanzar agente autónomo de pentesting</small></span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+                <button type="button" class="command-item" data-command-section="tools">
+                    <span class="command-item-icon"><i class="fas fa-toolbox"></i></span>
+                    <span><strong>Herramientas</strong><small>Port scan, web scan, brute force, shells</small></span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+                <button type="button" class="command-item" data-command-section="cve">
+                    <span class="command-item-icon"><i class="fas fa-shield-virus"></i></span>
+                    <span><strong>CVE Intel</strong><small>Buscar CVEs y generar exploits</small></span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+                <button type="button" class="command-item" data-command-section="explorer">
+                    <span class="command-item-icon"><i class="fas fa-folder-open"></i></span>
+                    <span><strong>Explorador</strong><small>Archivos, DBs y evidencias</small></span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+                <button type="button" class="command-item" data-command-section="sessions">
+                    <span class="command-item-icon"><i class="fas fa-terminal"></i></span>
+                    <span><strong>Sesiones</strong><small>Terminal interactiva para sesiones activas</small></span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+                <button type="button" class="command-item" data-command-section="system">
+                    <span class="command-item-icon"><i class="fas fa-heart-pulse"></i></span>
+                    <span><strong>Diagnóstico del sistema</strong><small>Red, servidor y herramientas disponibles</small></span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+                <button type="button" class="command-item" data-command-section="reports">
+                    <span class="command-item-icon"><i class="fas fa-file-shield"></i></span>
+                    <span><strong>Reportes</strong><small>Exportar evidencia y hallazgos</small></span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+            <p class="command-footer" id="command-title">Centro de comandos de PenTool</p>
+        </div>
+    </div>
+
+    <!-- Modal para Detalles de Vulnerabilidad -->
+    <div id="vuln-modal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close">&times;</button>
+            <div id="vuln-modal-body"></div>
+        </div>
+    </div>
+
+    <!-- Modal para password sudo -->
+    <div id="sudo-modal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" type="button">&times;</button>
+            <div class="modal-header">
+                <h3><i class="fas fa-key"></i> Password sudo</h3>
+                <p>Opcional. Se usara para intentar escalacion local durante el escaneo.</p>
+            </div>
+            <form id="sudo-password-form" class="modal-body">
+                <div class="form-group">
+                    <label>Password</label>
+                    <input
+                        type="password"
+                        id="sudo-password-input"
+                        class="form-input"
+                        placeholder="Dejar vacio para continuar sin sudo"
+                        autocomplete="current-password"
+                    >
+                </div>
+                <div class="settings-actions">
+                    <button type="button" class="btn btn-secondary" id="sudo-cancel-btn">
+                        <i class="fas fa-ban"></i> Continuar sin sudo
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-lock-open"></i> Usar sudo
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="/static/js/app.js?v=20260724-provider-hub"></script>
+</body>
+</html>

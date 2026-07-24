@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PenTool — Login</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Manrope', sans-serif;
+            background: #0a0e17;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .animated-bg {
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 80% 60% at 50% -20%, rgba(15, 159, 141, 0.15), transparent),
+                radial-gradient(ellipse 60% 40% at 80% 80%, rgba(0, 102, 255, 0.08), transparent),
+                radial-gradient(ellipse 50% 40% at 20% 90%, rgba(108, 92, 231, 0.06), transparent);
+            z-index: 0;
+        }
+        .grid-lines {
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: 0;
+        }
+        .login-container {
+            position: relative;
+            z-index: 1;
+            width: 440px;
+            max-width: 94vw;
+        }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 40px;
+            justify-content: center;
+        }
+        .brand-mark {
+            width: 48px;
+            height: 48px;
+            display: grid;
+            place-items: center;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #0f9f8d, #0b7a6b);
+            color: #fff;
+            font-size: 20px;
+            font-weight: 800;
+            letter-spacing: -0.05em;
+            box-shadow: 0 8px 32px rgba(15, 159, 141, 0.3);
+        }
+        .brand-text { color: #fff; }
+        .brand-text h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.03em; }
+        .brand-text small { display: block; color: #6b7f99; font-size: 10px; letter-spacing: 0.12em; font-weight: 600; }
+        .auth-card {
+            background: linear-gradient(145deg, rgba(18, 26, 40, 0.95), rgba(12, 18, 30, 0.95));
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 20px;
+            padding: 40px 36px;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+        }
+        .auth-tabs {
+            display: flex;
+            gap: 4px;
+            background: rgba(255,255,255,0.04);
+            border-radius: 12px;
+            padding: 4px;
+            margin-bottom: 32px;
+        }
+        .auth-tab {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            border: none;
+            background: transparent;
+            color: #6b7f99;
+            font-family: 'Manrope', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .auth-tab.active { background: rgba(15, 159, 141, 0.15); color: #0f9f8d; }
+        .auth-tab:hover:not(.active) { color: #9aafc9; }
+        .auth-form { display: none; }
+        .auth-form.active { display: block; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; color: #9aafc9; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; margin-bottom: 8px; text-transform: uppercase; }
+        .input-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            background: rgba(255,255,255,0.03);
+            transition: border-color 0.2s;
+        }
+        .input-wrap:focus-within { border-color: rgba(15, 159, 141, 0.4); }
+        .input-wrap i {
+            position: absolute;
+            left: 14px;
+            color: #4a5a72;
+            font-size: 14px;
+        }
+        .input-wrap input {
+            width: 100%;
+            padding: 14px 14px 14px 42px;
+            background: transparent;
+            border: none;
+            color: #e4eaf2;
+            font-family: 'Manrope', sans-serif;
+            font-size: 14px;
+            outline: none;
+        }
+        .input-wrap input::placeholder { color: #3d4d65; }
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-family: 'Manrope', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #0f9f8d, #0b7a6b);
+            color: #fff;
+            box-shadow: 0 8px 24px rgba(15, 159, 141, 0.25);
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 12px 32px rgba(15, 159, 141, 0.35); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .error-msg {
+            padding: 10px 14px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 10px;
+            color: #ef4444;
+            font-size: 12px;
+            margin-bottom: 16px;
+            display: none;
+        }
+        .error-msg.visible { display: block; }
+        .status-dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+        .status-dot.online { background: #22c55e; box-shadow: 0 0 8px rgba(34, 197, 94, 0.5); }
+        .status-dot.offline { background: #ef4444; box-shadow: 0 0 8px rgba(239, 68, 68, 0.5); }
+        .server-status {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin-top: 24px;
+            font-size: 11px;
+            color: #4a5a72;
+        }
+        .server-status span { display: flex; align-items: center; }
+        .demo-note {
+            text-align: center;
+            margin-top: 16px;
+            color: #3d4d65;
+            font-size: 11px;
+        }
+        .demo-note code { color: #6b7f99; background: rgba(255,255,255,0.04); padding: 2px 8px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .loading { animation: pulse 1.5s ease-in-out infinite; }
+    </style>
+</head>
+<body>
+    <div class="animated-bg"></div>
+    <div class="grid-lines"></div>
+
+    <div class="login-container">
+        <div class="brand">
+            <div class="brand-mark">M</div>
+            <div class="brand-text">
+                <h1>PenTool</h1>
+                <small>AUTONOMOUS SECURITY PLATFORM</small>
+            </div>
+        </div>
+
+        <div class="auth-card">
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-tab="login">Iniciar sesión</button>
+                <button class="auth-tab" data-tab="signup">Crear cuenta</button>
+            </div>
+
+            <div id="error-msg" class="error-msg"></div>
+
+            <form id="login-form" class="auth-form active">
+                <div class="form-group">
+                    <label>Usuario o email</label>
+                    <div class="input-wrap">
+                        <i class="fas fa-user"></i>
+                        <input type="text" id="login-username" placeholder="admin" autocomplete="username">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Contraseña</label>
+                    <div class="input-wrap">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary" id="login-btn">
+                    <span id="login-btn-text">Ingresar</span>
+                </button>
+            </form>
+
+            <form id="signup-form" class="auth-form">
+                <div class="form-group">
+                    <label>Nombre de usuario</label>
+                    <div class="input-wrap">
+                        <i class="fas fa-user"></i>
+                        <input type="text" id="signup-username" placeholder="agente" autocomplete="username">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Correo electrónico</label>
+                    <div class="input-wrap">
+                        <i class="fas fa-envelope"></i>
+                        <input type="email" id="signup-email" placeholder="agente@dominio.com" autocomplete="email">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Contraseña</label>
+                    <div class="input-wrap">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="signup-password" placeholder="mín. 4 caracteres" autocomplete="new-password">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary" id="signup-btn">
+                    <span id="signup-btn-text">Crear cuenta</span>
+                </button>
+            </form>
+
+            <div class="server-status">
+                <span><span class="status-dot online" id="server-dot"></span> Servidor <b id="server-status-text">verificando...</b></span>
+                <span><span class="status-dot offline" id="api-dot"></span> API <b id="api-status-text">—</b></span>
+            </div>
+            <div class="demo-note">
+                Demo: <code>admin</code> / <code>metatron</code>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        async function checkServer() {
+            try {
+                const r = await fetch(`${API_BASE}/health`);
+                const data = await r.json();
+                document.getElementById('server-dot').className = 'status-dot online';
+                document.getElementById('server-status-text').textContent = 'en línea v' + (data.version || '?');
+                document.getElementById('api-dot').className = 'status-dot online';
+                document.getElementById('api-status-text').textContent = 'disponible';
+            } catch {
+                document.getElementById('server-dot').className = 'status-dot offline';
+                document.getElementById('server-status-text').textContent = 'caído';
+                document.getElementById('api-dot').className = 'status-dot offline';
+                document.getElementById('api-status-text').textContent = 'no disponible';
+            }
+        }
+        checkServer();
+
+        function showError(msg) {
+            const el = document.getElementById('error-msg');
+            el.textContent = msg;
+            el.classList.add('visible');
+        }
+        function hideError() {
+            document.getElementById('error-msg').classList.remove('visible');
+        }
+
+        document.querySelectorAll('.auth-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab + '-form').classList.add('active');
+                hideError();
+            });
+        });
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideError();
+            const btn = document.getElementById('login-btn');
+            const txt = document.getElementById('login-btn-text');
+            const username = document.getElementById('login-username').value.trim();
+            const password = document.getElementById('login-password').value;
+            if (!username || !password) { showError('Completa todos los campos'); return; }
+            btn.disabled = true; txt.textContent = 'Ingresando...';
+            try {
+                const r = await fetch(`${API_BASE}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password }),
+                });
+                const data = await r.json();
+                if (!r.ok) { showError(data.detail || 'Error de autenticación'); btn.disabled = false; txt.textContent = 'Ingresar'; return; }
+                localStorage.setItem('authToken', data.token);
+                localStorage.setItem('authUser', JSON.stringify(data.user));
+                window.location.href = '/';
+            } catch (err) {
+                showError('No se pudo conectar al servidor');
+                btn.disabled = false;
+                txt.textContent = 'Ingresar';
+            }
+        });
+
+        document.getElementById('signup-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideError();
+            const btn = document.getElementById('signup-btn');
+            const txt = document.getElementById('signup-btn-text');
+            const username = document.getElementById('signup-username').value.trim();
+            const email = document.getElementById('signup-email').value.trim();
+            const password = document.getElementById('signup-password').value;
+            if (!username || !email || !password) { showError('Completa todos los campos'); return; }
+            if (password.length < 4) { showError('La contraseña debe tener al menos 4 caracteres'); return; }
+            btn.disabled = true; txt.textContent = 'Creando...';
+            try {
+                const r = await fetch(`${API_BASE}/api/auth/signup`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email, password }),
+                });
+                const data = await r.json();
+                if (!r.ok) { showError(data.detail || 'Error al crear cuenta'); btn.disabled = false; txt.textContent = 'Crear cuenta'; return; }
+                localStorage.setItem('authToken', data.token);
+                localStorage.setItem('authUser', JSON.stringify(data.user));
+                window.location.href = '/';
+            } catch (err) {
+                showError('No se pudo conectar al servidor');
+                btn.disabled = false;
+                txt.textContent = 'Crear cuenta';
+            }
+        });
+
+        document.getElementById('login-password').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') document.getElementById('login-form').dispatchEvent(new Event('submit'));
+        });
+    </script>
+</body>
+</html>
