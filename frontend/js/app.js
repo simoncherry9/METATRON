@@ -1,3 +1,4 @@
+console.log('app.js v2 loaded', window.location.href);
 const API_BASE_URL = window.location.origin;
 const DEFAULT_PENTOOL_API_KEY = 'pentool-api-key';
 
@@ -3376,6 +3377,7 @@ function setupAuthLogout() {
 // OVERRIDE init()
 // ============================================
 async function init() {
+    console.log('[init] started');
     setupNavigation();
     setupCommandPalette();
     setupFormHandlers();
@@ -3391,16 +3393,23 @@ async function init() {
     setupSessionsHandlers();
     setupAdminHandlers();
     setupAuthLogout();
+    console.log('[init] handlers done');
 
+    console.log('[init] rendering provider catalog');
     renderProviderCatalog('openai_compatible');
     document.getElementById('settings-section')?.classList.remove('active');
+    console.log('[init] provider catalog rendered');
 
+    console.log('[init] calling authenticate...');
     const authenticated = await authenticate();
-    if (!authenticated) return;
+    console.log('[init] authenticate result:', authenticated);
+    if (!authenticated) { console.log('[init] auth failed, returning early'); return; }
+    console.log('[init] auth OK, loading data...');
 
     renderChatHistory();
     loadChat(currentChatId);
 
+    console.log('[init] starting Promise.all...');
     await Promise.all([
         loadLlmSettings(),
         loadRecentScans(),
@@ -3414,6 +3423,7 @@ async function init() {
         loadExplorerDownloads(),
         loadAdminUsers(),
     ]);
+    console.log('[init] Promise.all done');
     logActivity('Dashboard cargado exitosamente');
 
     if (activeScanId) {

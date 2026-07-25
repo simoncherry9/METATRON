@@ -25,8 +25,12 @@ def _database_path():
 
 
 def get_connection():
-    """Returns a SQLite connection. Database file: pentool.db"""
-    return sqlite3.connect(_database_path())
+    """Returns a SQLite connection with WAL mode for better concurrency."""
+    conn = sqlite3.connect(_database_path(), timeout=10)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    return conn
 
 
 def init_db():

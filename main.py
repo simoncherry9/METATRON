@@ -18,6 +18,8 @@ import json
 import socket
 import logging
 import logging.handlers
+import asyncio
+from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -117,7 +119,27 @@ LEGACY_API_KEYS = {f"{'meta'}{'tron'}-api-key"}
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 security = HTTPBearer()
 
-app = FastAPI(title="PenTool", description="AI-Powered Penetration Testing")
+
+async def async_metasploit(sudo_password: str = None):
+    """Create a Metasploit RPC client without blocking the event loop."""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, lambda: Metasploit(sudo_password=sudo_password))
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup/shutdown events."""
+    # ── Startup ──
+    init_db()
+    _refresh_network_urls()  # pre-cache LAN URLs (synchronous, runs at startup before uvicorn)
+    threading.Thread(target=start_msfrpcd, daemon=True).start()
+    threading.Thread(target=schedule_monitor, daemon=True).start()
+    yield
+    # ── Shutdown (if needed) ──
+    pass
+
+
+app = FastAPI(title="PenTool", description="AI-Powered Penetration Testing", lifespan=lifespan)
 
 
 @app.middleware("http")
@@ -1340,24 +1362,41 @@ async def root():
     return {"message": "PenTool", "api_docs": "/docs"}
 
 
-def _local_network_urls() -> list:
+_cached_network_urls = None
+
+
+def _refresh_network_urls():
+    """Compute network URLs (called once at startup and cached)."""
+    global _cached_network_urls
     port = int(os.getenv("PENTOOL_PORT", "8000"))
     addresses = set()
     try:
-        addresses.update(socket.gethostbyname_ex(socket.gethostname())[2])
+        hostname = socket.gethostname()
+        if hostname:
+            addresses.update(socket.gethostbyname_ex(hostname)[2])
     except OSError:
         pass
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+            probe.settimeout(1.0)
             probe.connect(("8.8.8.8", 80))
             addresses.add(probe.getsockname()[0])
     except OSError:
         pass
-    return [
+
+    _cached_network_urls = [
         f"http://{address}:{port}"
         for address in sorted(addresses)
         if address and not address.startswith(("127.", "169.254."))
     ]
+
+
+def _local_network_urls() -> list:
+    """Return cached network URLs. Compute once, never block on subsequent calls."""
+    global _cached_network_urls
+    if _cached_network_urls is None:
+        _refresh_network_urls()
+    return _cached_network_urls or []
 
 
 @app.get("/health")
@@ -2219,10 +2258,10 @@ async def list_all_sessions(api_key: str = Security(verify_api_key)):
         sudo_password = get_scan_sudo_password("_global_")
     except: pass
 
-    # Gather MSF sessions
+    # Gather MSF sessions (non-blocking via thread pool)
     msf_sessions = []
     try:
-        msf = Metasploit(sudo_password=sudo_password)
+        msf = await async_metasploit(sudo_password=sudo_password)
         msf_sessions = msf.list_sessions()
     except Exception as e:
         pass
@@ -2285,7 +2324,7 @@ async def session_command(session_id: str, request: SessionCommandRequest, api_k
 
     try:
         sid = int(session_id)
-        msf = Metasploit(sudo_password=sudo_password)
+        msf = await async_metasploit(sudo_password=sudo_password)
         output = msf.session_interact(sid, request.command)
         return {"output": output, "session_id": session_id, "type": "meterpreter"}
     except ValueError:
@@ -2313,7 +2352,7 @@ async def session_disconnect(session_id: str, api_key: str = Security(verify_api
         sudo_password = None
         try: sudo_password = get_scan_sudo_password("_global_")
         except: pass
-        msf = Metasploit(sudo_password=sudo_password)
+        msf = await async_metasploit(sudo_password=sudo_password)
         success = msf.stop_session(sid)
         if success:
             return {"message": f"Session {sid} stopped"}
@@ -2349,7 +2388,7 @@ async def session_info(session_id: str, api_key: str = Security(verify_api_key))
         sudo_password = None
         try: sudo_password = get_scan_sudo_password("_global_")
         except: pass
-        msf = Metasploit(sudo_password=sudo_password)
+        msf = await async_metasploit(sudo_password=sudo_password)
         sessions = msf.list_sessions()
         for s in sessions:
             if s["id"] == sid:
@@ -2362,7 +2401,7 @@ async def session_info(session_id: str, api_key: str = Security(verify_api_key))
 async def stop_session(scan_id: str, session_id: int, api_key: str = Security(verify_api_key)):
     try:
         sudo_password = get_scan_sudo_password(scan_id)
-        msf = Metasploit(sudo_password=sudo_password)
+        msf = await async_metasploit(sudo_password=sudo_password)
         success = msf.stop_session(session_id)
         if success:
             add_scan_event(scan_id, "session_stop", f"Sesion {session_id} detenida", "Sesion meterpreter detenida exitosamente", "post_exploitation")
@@ -2379,7 +2418,7 @@ async def stop_session(scan_id: str, session_id: int, api_key: str = Security(ve
 async def destroy_session(scan_id: str, session_id: int, api_key: str = Security(verify_api_key)):
     try:
         sudo_password = get_scan_sudo_password(scan_id)
-        msf = Metasploit(sudo_password=sudo_password)
+        msf = await async_metasploit(sudo_password=sudo_password)
         success = msf.destroy_session(session_id)
         if success:
             add_scan_event(scan_id, "session_destroy", f"Sesion {session_id} eliminada", "Sesion meterpreter eliminada exitosamente", "post_exploitation")
@@ -2495,10 +2534,10 @@ async def run_metasploit_module(request: MSFRequest, api_key: str = Security(ver
         create_scan_run(scan_id, request.target, status="running", phase="metasploit")
         add_scan_event(scan_id, "msf_module", "Modulo de Metasploit", request.module, "metasploit")
 
-        msf = Metasploit()
+        msf = await async_metasploit()
         if request.scan_id:
             sudo_password = get_scan_sudo_password(request.scan_id)
-            msf = Metasploit(sudo_password=sudo_password)
+            msf = await async_metasploit(sudo_password=sudo_password)
         module_type = request.module.split("/")[0]
         module_name = request.module
         result = msf.execute_module(module_type, module_name, request.options)
@@ -3069,63 +3108,14 @@ def start_server():
     log_dir = os.path.join(os.path.dirname(__file__), "logs")
     os.makedirs(log_dir, exist_ok=True)
 
-    print(f"[*] Access logs: {os.path.join(log_dir, 'access.log')}")
-
-    LOG_CONFIG = {
-        "version": 1,
-        "disable_existing_loggers": False,
-        "formatters": {
-            "default": {
-                "()": "uvicorn.logging.DefaultFormatter",
-                "fmt": "%(levelprefix)s %(message)s",
-                "use_colors": None,
-            },
-            "access": {
-                "()": "uvicorn.logging.AccessFormatter",
-                "fmt": '%(levelprefix)s %(client_addr)s - "%(request_line)s" %(status_code)s',
-            },
-        },
-        "handlers": {
-            "console": {
-                "formatter": "default",
-                "class": "logging.StreamHandler",
-                "stream": "ext://sys.stderr",
-            },
-            "access_file": {
-                "formatter": "access",
-                "class": "logging.handlers.RotatingFileHandler",
-                "filename": os.path.join(log_dir, "access.log"),
-                "maxBytes": 1048576,
-                "backupCount": 3,
-            },
-            "error_file": {
-                "formatter": "default",
-                "class": "logging.handlers.RotatingFileHandler",
-                "filename": os.path.join(log_dir, "error.log"),
-                "maxBytes": 1048576,
-                "backupCount": 3,
-            },
-        },
-        "loggers": {
-            "uvicorn": {"handlers": ["console", "error_file"], "level": "INFO", "propagate": False},
-            "uvicorn.error": {"handlers": ["console", "error_file"], "level": "INFO", "propagate": False},
-            "uvicorn.access": {"handlers": ["access_file"], "level": "INFO", "propagate": False},
-        },
-    }
-
     uvicorn.run(
         app,
         host=os.getenv("PENTOOL_HOST", "0.0.0.0"),
         port=port,
-        log_config=LOG_CONFIG,
     )
 
 
-@app.on_event("startup")
-async def startup_event():
-    init_db()
-    threading.Thread(target=start_msfrpcd, daemon=True).start()
-    threading.Thread(target=schedule_monitor, daemon=True).start()
+# (startup moved to lifespan context manager above)
 
 
 if __name__ == "__main__":
