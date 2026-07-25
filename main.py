@@ -925,9 +925,12 @@ def run_terminal_command(scan_id: str, scan: dict, request: TerminalRequest) -> 
         persist_command_output(scan_id, f"bindshell:1524$ {request.command}", output, scan["target"])
         return {"output": output, "has_root": True, "session_id": None, "access_type": "bindshell"}
     if not request.session_id:
-        raise HTTPException(status_code=400, detail="No active terminal session is available")
-    sudo_password = get_scan_sudo_password(scan_id)
-    msf = Metasploit(sudo_password=sudo_password)
+        raise HTTPException(status_code=400, detail="No hay una sesión activa. Debes tener acceso root primero.")
+    try:
+        sudo_password = get_scan_sudo_password(scan_id)
+        msf = Metasploit(sudo_password=sudo_password)
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"No se puede conectar con Metasploit (msfrpcd). La sesión meterpreter ya no está disponible o el servicio no está en ejecución. Detalle: {e}")
     output = msf.session_interact(request.session_id, request.command)
     add_scan_event(scan_id, "terminal_command", "Terminal Meterpreter", f"Comando: {request.command}\n\nSalida:\n{output}", "terminal")
     persist_command_output(scan_id, f"session:{request.session_id}$ {request.command}", output, scan["target"])
@@ -2199,7 +2202,10 @@ for d in /var/lib/mysql /var/lib/postgresql /var/www /root /home; do
   fi
 done
 """
-        output = run_terminal_command(scan_id, scan, TerminalRequest(command=f"bash -lc {shlex.quote(search_script)}"))
+        output = run_terminal_command(scan_id, scan, TerminalRequest(
+            command=f"bash -lc {shlex.quote(search_script)}",
+            session_id=scan.get("session_id"),
+        ))
         analysis_prompt = f"""
 Eres un analista de post-explotacion en un laboratorio autorizado. Analiza la busqueda sensible realizada con acceso root y resume:
 1. Archivos o directorios con mayor valor.

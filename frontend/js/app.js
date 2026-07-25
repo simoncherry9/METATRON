@@ -64,12 +64,10 @@ const SECTION_TITLES = {
     reports: 'Reportes',
     exploits: 'Exploit Manager',
     settings: 'Configuración de IA',
-    agent: 'Agente Autónomo v2',
     cve: 'CVE Intelligence',
     explorer: 'Explorador de Víctima',
     tools: 'Herramientas Ofensivas',
     chat: 'Chat con IA',
-    sessions: 'Sesiones Activas',
     admin: 'Gestión de Usuarios',
     system: 'Diagnóstico del sistema',
 };
@@ -991,7 +989,9 @@ async function searchSensitiveData() {
         await fetchActiveScan();
     } catch (error) {
         console.error('Error searching sensitive data:', error);
-        showToast('Error buscando datos sensibles.', 'error');
+        const detail = error?.message ? (error.message.length > 120 ? error.message.slice(0, 120) + '...' : error.message) : 'Error buscando datos sensibles';
+        showToast(detail, 'error', 5000);
+        appendTerminalOutput('sensitive-search error', detail);
     } finally {
         if (button) button.disabled = false;
     }
@@ -2265,6 +2265,30 @@ function setupFormHandlers() {
         }
     });
 
+    // Live summary updater for scan config
+    const scanTypeLabels = { quick: 'Rápido (5 min)', standard: 'Estándar (15 min)', deep: 'Profundo (30+ min)', custom: 'Personalizado' };
+    const intensityLabels = { low: 'Baja', medium: 'Media', high: 'Alta' };
+    function updateScanSummary() {
+        const form = document.getElementById('full-scan-form');
+        if (!form) return;
+        const fd = new FormData(form);
+        const st = document.getElementById('summary-scan-type');
+        const si = document.getElementById('summary-intensity');
+        const sm = document.getElementById('summary-modules');
+        if (st) st.textContent = scanTypeLabels[fd.get('scan-type')] || 'Estándar (15 min)';
+        if (si) si.textContent = intensityLabels[fd.get('intensity')] || 'Media';
+        if (sm) {
+            const checks = form.querySelectorAll('input[type="checkbox"]');
+            const checked = form.querySelectorAll('input[type="checkbox"]:checked').length;
+            sm.textContent = `${checked} / ${checks.length}`;
+        }
+    }
+    const scanForm = document.getElementById('full-scan-form');
+    if (scanForm) {
+        scanForm.addEventListener('change', updateScanSummary);
+        setTimeout(updateScanSummary, 100);
+    }
+
     document.getElementById('settings-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         savePenToolApiKey(document.getElementById('api-key-input').value.trim());
@@ -2385,81 +2409,6 @@ function setupFormHandlers() {
             }
         });
     }
-}
-
-// ============================================
-// AGENTE AUTÓNOMO v2
-// ============================================
-function setupAgentHandlers() {
-    const agentForm = document.getElementById('agent-form');
-    if (!agentForm) return;
-
-    agentForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const target = document.getElementById('agent-target').value.trim();
-        const lhost = document.getElementById('agent-lhost').value.trim();
-        const lport = parseInt(document.getElementById('agent-lport').value) || 4444;
-        const recon = document.getElementById('agent-recon').value.trim();
-
-        if (!target) { showToast('Ingresa un objetivo', 'error'); return; }
-
-        document.getElementById('agent-progress').style.display = 'block';
-        document.getElementById('agent-scan-id').textContent = 'iniciando...';
-
-        try {
-            const data = await apiFetch('/api/agent/start', {
-                method: 'POST',
-                body: JSON.stringify({ target, lhost, lport, recon_data: recon }),
-            });
-            document.getElementById('agent-scan-id').textContent = data.scan_id;
-            showToast(`Agente lanzado: ${data.scan_id}`, 'success');
-            localStorage.setItem('activeScanId', data.scan_id);
-            startAgentPolling(data.scan_id);
-        } catch (err) {
-            showToast(`Error: ${err.message}`, 'error');
-            document.getElementById('agent-progress').style.display = 'none';
-        }
-    });
-
-    document.getElementById('agent-manual-btn')?.addEventListener('click', async () => {
-        const cmd = document.getElementById('agent-manual-cmd').value.trim();
-        if (!cmd) { showToast('Ingresa un comando', 'error'); return; }
-        try {
-            const data = await apiFetch('/api/agent/step', {
-                method: 'POST',
-                body: JSON.stringify({ target: '', command: cmd }),
-            });
-            const outputEl = document.getElementById('agent-manual-output');
-            outputEl.textContent = data.output || 'Sin salida';
-        } catch (err) {
-            document.getElementById('agent-manual-output').textContent = `Error: ${err.message}`;
-        }
-    });
-}
-
-function startAgentPolling(scanId) {
-    const interval = setInterval(async () => {
-        try {
-            const scan = await apiFetch(`/scans/${scanId}`);
-            if (!scan) return;
-
-            const events = scan.events || [];
-            const transcript = document.getElementById('agent-transcript');
-            transcript.innerHTML = events.slice(-30).map(e =>
-                `<div class="activity-item">
-                    <span class="activity-time">${e.created_at || ''}</span>
-                    <span class="activity-text"><strong>${e.event_type}</strong>: ${e.title}</span>
-                    ${e.content ? `<pre style="font-size:10px;margin:4px 0 0;color:#6b7f99;max-height:60px;overflow:hidden">${e.content.substring(0, 200)}</pre>` : ''}
-                </div>`
-            ).join('') || '<div class="empty-state"><i class="fas fa-robot"></i><p>Esperando acciones...</p></div>';
-
-            if (scan.status === 'completed' || scan.status === 'failed') {
-                clearInterval(interval);
-                document.getElementById('agent-progress').style.display = 'none';
-                showToast(`Agente ${scan.status}`, scan.status === 'completed' ? 'success' : 'error');
-            }
-        } catch { clearInterval(interval); }
-    }, 3000);
 }
 
 // ============================================
@@ -2720,7 +2669,7 @@ async function sendChatMessage() {
 }
 
 async function buildChatContext() {
-    const ctx = { system: {}, scan: {}, cve: {}, agent: {}, explorer: {} };
+    const ctx = { system: {}, scan: {}, cve: {}, explorer: {} };
     try {
         const health = await apiFetch('/health');
         ctx.system = { version: health.version || '?', status: 'online' };
@@ -2741,15 +2690,6 @@ async function buildChatContext() {
         ctx.cve = { count: Array.isArray(vulns) ? vulns.length : 0 };
         document.getElementById('ctx-cve').textContent = ctx.cve.count;
     } catch {}
-
-    const agentSid = localStorage.getItem('agentScanId');
-    if (agentSid) {
-        try {
-            const scan = await apiFetch(`/scans/${agentSid}`);
-            ctx.agent = { id: agentSid, status: scan.status || '?' };
-            document.getElementById('ctx-agent').textContent = scan.status || 'activo';
-        } catch { document.getElementById('ctx-agent').textContent = 'activo'; }
-    }
 
     return ctx;
 }
@@ -2950,274 +2890,6 @@ async function localChatResponse(msg) {
 let currentChatId = 'chat_' + Date.now();
 
 // ============================================
-// SESIONES ACTIVAS
-// ============================================
-let selectedSessionId = null;
-let sessionsPollTimer = null;
-
-function setupSessionsHandlers() {
-    document.getElementById('sessions-refresh-btn')?.addEventListener('click', refreshSessions);
-    document.getElementById('sessions-filter')?.addEventListener('input', filterSessions);
-    document.getElementById('sessions-send-btn')?.addEventListener('click', sendSessionCommand);
-    document.getElementById('sessions-command-input')?.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); sendSessionCommand(); }
-        if (e.key === 'ArrowUp') { e.preventDefault(); navigateCmdHistory(-1); }
-        if (e.key === 'ArrowDown') { e.preventDefault(); navigateCmdHistory(1); }
-    });
-    document.getElementById('sessions-clear-btn')?.addEventListener('click', clearTerminal);
-    document.getElementById('sessions-disconnect-btn')?.addEventListener('click', disconnectSession);
-    document.getElementById('sessions-new-btn')?.addEventListener('click', showNewSessionModal);
-
-    // Poll sessions every 6s
-    sessionsPollTimer = setInterval(refreshSessions, 6000);
-    refreshSessions();
-}
-
-async function refreshSessions() {
-    try {
-        const data = await apiFetch('/api/sessions');
-        renderSessions(data.sessions || []);
-        document.getElementById('sessions-count-badge').textContent = `${data.count || 0} sesiones`;
-    } catch {
-        document.getElementById('sessions-count-badge').textContent = 'desconectado';
-    }
-}
-
-function renderSessions(sessions) {
-    const el = document.getElementById('sessions-list');
-    const count = document.getElementById('sessions-count');
-    if (!el) return;
-    if (count) count.textContent = sessions.length;
-
-    if (sessions.length === 0) {
-        el.innerHTML = '<div class="empty-state"><i class="fas fa-plug"></i><p>No hay sesiones activas</p><small>Lanza un exploit o escaneo para obtener una sesión</small></div>';
-        return;
-    }
-
-    el.innerHTML = sessions.map(s => {
-        const sid = s.id;
-        const isActive = sid === selectedSessionId;
-        const type = s.type || 'unknown';
-        const typeClass = type.toLowerCase() === 'meterpreter' ? 'meterpreter' : (type.toLowerCase() === 'shell' ? 'shell' : 'bindshell');
-        const statusClass = s.alive !== false ? 'online' : 'offline';
-        const target = s.target || s.info || 'desconocido';
-        const info = s.info || s.desc || `${s.tunnel_peer || ''}`;
-        const platform = s.platform || '';
-
-        return `<div class="session-card ${isActive ? 'active' : ''}" data-session-id="${sid}" onclick="selectSession('${sid}')">
-            <div class="session-card-row">
-                <span class="session-card-type ${typeClass}">${type}</span>
-                <span class="session-card-target">${target}</span>
-                <span class="session-card-badge ${statusClass}">${s.alive !== false ? 'vivo' : 'caido'}</span>
-            </div>
-            <div class="session-card-row">
-                <span class="session-card-info">${info}</span>
-            </div>
-            ${platform ? `<div class="session-card-row"><span class="session-card-platform">${platform}</span></div>` : ''}
-        </div>`;
-    }).join('');
-}
-
-function filterSessions() {
-    const q = document.getElementById('sessions-filter').value.toLowerCase();
-    document.querySelectorAll('.session-card').forEach(card => {
-        const text = card.textContent.toLowerCase();
-        card.style.display = text.includes(q) ? '' : 'none';
-    });
-}
-
-function selectSession(sessionId) {
-    selectedSessionId = sessionId;
-
-    // Highlight card
-    document.querySelectorAll('.session-card').forEach(c => c.classList.remove('active'));
-    const card = document.querySelector(`.session-card[data-session-id="${sessionId}"]`);
-    if (card) card.classList.add('active');
-
-    // Show terminal
-    document.getElementById('sessions-terminal-empty').style.display = 'none';
-    document.getElementById('sessions-terminal-output').style.display = 'block';
-    document.getElementById('sessions-terminal-input-row').style.display = 'flex';
-    document.getElementById('sessions-disconnect-btn').disabled = false;
-
-    // Update header
-    const target = card?.querySelector('.session-card-target')?.textContent || sessionId;
-    document.getElementById('sessions-terminal-title').innerHTML = `<i class="fas fa-terminal"></i> ${target}`;
-    document.getElementById('sessions-prompt').textContent = sessionId.startsWith('bindshell:') ? 'shell$' : 'msf$';
-
-    // Welcome message
-    appendTerminalLine('info', `[+] Conectado a sesión ${sessionId}`);
-    appendTerminalLine('info', `[+] Escribe comandos y presiona Enter para ejecutar`);
-
-    document.getElementById('sessions-command-input').focus();
-}
-
-function appendTerminalLine(cls, text) {
-    const el = document.getElementById('sessions-terminal-output');
-    const line = document.createElement('span');
-    line.className = `term-line ${cls}`;
-    line.textContent = text;
-    el.appendChild(line);
-    el.scrollTop = el.scrollHeight;
-}
-
-async function sendSessionCommand() {
-    const input = document.getElementById('sessions-command-input');
-    const cmd = input.value.trim();
-    if (!cmd || !selectedSessionId) return;
-
-    input.value = '';
-    appendTerminalLine('prompt', `${document.getElementById('sessions-prompt').textContent} ${cmd}`);
-    pushCmdHistory(cmd);
-
-    try {
-        const data = await apiFetch(`/api/sessions/${encodeURIComponent(selectedSessionId)}/command`, {
-            method: 'POST',
-            body: JSON.stringify({ command: cmd }),
-        });
-        const output = data.output || '[sin salida]';
-        const lines = output.split('\n');
-        lines.forEach(l => {
-            const trimmed = l.trim();
-            if (!trimmed) return;
-            // Color-code based on content
-            let cls = 'output';
-            if (trimmed.toLowerCase().includes('error') || trimmed.toLowerCase().includes('fail')) cls = 'error';
-            else if (trimmed.toLowerCase().includes('success') || trimmed.includes('uid=')) cls = 'success';
-            else if (trimmed.startsWith('[')) cls = 'info';
-            appendTerminalLine(cls, trimmed);
-        });
-    } catch (err) {
-        appendTerminalLine('error', `[!] Error: ${err.message}`);
-    }
-
-    document.getElementById('sessions-command-input').focus();
-}
-
-// Command history
-let cmdHistory = [];
-let cmdHistoryIdx = -1;
-
-function pushCmdHistory(cmd) {
-    cmdHistory.push(cmd);
-    if (cmdHistory.length > 100) cmdHistory.shift();
-    cmdHistoryIdx = cmdHistory.length;
-}
-
-function navigateCmdHistory(dir) {
-    const input = document.getElementById('sessions-command-input');
-    const newIdx = cmdHistoryIdx + dir;
-    if (newIdx < 0 || newIdx >= cmdHistory.length) return;
-    cmdHistoryIdx = newIdx;
-    input.value = cmdHistory[cmdHistoryIdx] || '';
-    // Move cursor to end
-    setTimeout(() => { input.selectionStart = input.selectionEnd = input.value.length; }, 0);
-}
-
-function clearTerminal() {
-    document.getElementById('sessions-terminal-output').innerHTML = '';
-}
-
-async function disconnectSession() {
-    if (!selectedSessionId) return;
-    appendTerminalLine('system', `[*] Desconectando sesión ${selectedSessionId}...`);
-    try {
-        const data = await apiFetch(`/api/sessions/${encodeURIComponent(selectedSessionId)}/disconnect`, { method: 'POST' });
-        appendTerminalLine('success', `[+] ${data.message || 'Desconectado'}`);
-    } catch (err) {
-        appendTerminalLine('error', `[!] ${err.message}`);
-    }
-    document.getElementById('sessions-disconnect-btn').disabled = true;
-    selectedSessionId = null;
-    refreshSessions();
-}
-
-function showNewSessionModal() {
-    const modal = document.createElement('div');
-    modal.className = 'modal active';
-    modal.id = 'new-session-modal';
-    modal.innerHTML = `
-    <div class="modal-content" style="max-width:480px">
-        <button class="modal-close" type="button" onclick="this.closest('.modal').remove()">&times;</button>
-        <div class="modal-header">
-            <h3><i class="fas fa-plug"></i> Nueva sesión</h3>
-            <p>Crea una sesión interactiva para control remoto</p>
-        </div>
-        <form class="modal-body" onsubmit="createNewSession(event)">
-            <div class="form-group">
-                <label>Tipo de sesión</label>
-                <select id="new-session-type" class="form-input" onchange="updateNewSessionCmd()">
-                    <option value="custom">Personalizada</option>
-                    <option value="bindshell">Bindshell (nc target 1524)</option>
-                    <option value="revshell">Reverse shell listener</option>
-                    <option value="netcat">Netcat listener</option>
-                    <option value="ssh">SSH directo</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Target (IP o host)</label>
-                <input type="text" id="new-session-target" class="form-input" placeholder="192.168.1.100" oninput="updateNewSessionCmd()">
-            </div>
-            <div class="form-group">
-                <label>Puerto</label>
-                <input type="number" id="new-session-port" class="form-input" placeholder="4444" value="4444" oninput="updateNewSessionCmd()">
-            </div>
-            <div class="form-group">
-                <label>Comando personalizado</label>
-                <input type="text" id="new-session-command" class="form-input mono-input" placeholder="nc -lvnp 4444">
-                <small class="field-hint">Se auto-completa según el tipo, pero puedes cambiarlo</small>
-            </div>
-            <div class="form-group">
-                <label>Descripción</label>
-                <input type="text" id="new-session-info" class="form-input" placeholder="Opcional: descripción de la sesión">
-            </div>
-            <div class="settings-actions">
-                <button type="button" class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancelar</button>
-                <button type="submit" class="btn btn-primary"><i class="fas fa-plug"></i> Crear sesión</button>
-            </div>
-        </form>
-    </div>`;
-    document.body.appendChild(modal);
-    updateNewSessionCmd();
-}
-
-function updateNewSessionCmd() {
-    const type = document.getElementById('new-session-type')?.value;
-    const target = document.getElementById('new-session-target')?.value;
-    const port = document.getElementById('new-session-port')?.value || '4444';
-    const cmdInput = document.getElementById('new-session-command');
-    if (!cmdInput) return;
-    switch (type) {
-        case 'bindshell': cmdInput.value = target ? `nc ${target} 1524` : 'nc <target> 1524'; break;
-        case 'revshell': cmdInput.value = `nc -lvnp ${port}`; break;
-        case 'netcat': cmdInput.value = `nc -lvnp ${port}`; break;
-        case 'ssh': cmdInput.value = target ? `ssh -o StrictHostKeyChecking=no root@${target}` : 'ssh root@<target>'; break;
-        default: cmdInput.value = target ? `nc -lvnp ${port}` : `nc -lvnp ${port}`; break;
-    }
-}
-
-async function createNewSession(e) {
-    e.preventDefault();
-    const type = document.getElementById('new-session-type').value;
-    const target = document.getElementById('new-session-target').value.trim();
-    const port = parseInt(document.getElementById('new-session-port').value) || 4444;
-    const command = document.getElementById('new-session-command').value.trim();
-    const info = document.getElementById('new-session-info').value.trim();
-
-    try {
-        const data = await apiFetch('/api/sessions/create', {
-            method: 'POST',
-            body: JSON.stringify({ target, type, command, info, port }),
-        });
-        showToast(`Sesión creada: ${data.session_id}`, 'success');
-        document.getElementById('new-session-modal').remove();
-        refreshSessions();
-    } catch (err) {
-        showToast(`Error: ${err.message}`, 'error');
-    }
-}
-
-// ============================================
 // HERRAMIENTAS OFENSIVAS
 // ============================================
 function setupToolsHandlers() {
@@ -3384,13 +3056,11 @@ async function init() {
     setupModalHandlers();
     initThreatChart();
     savePenToolApiKey(pentoolApiKey);
-    setupAgentHandlers();
     setupCVEHandlers();
     setupExplorerHandlers();
     setupToolsHandlers();
     setupShellGenHandler();
     setupChatHandlers();
-    setupSessionsHandlers();
     setupAdminHandlers();
     setupAuthLogout();
     console.log('[init] handlers done');

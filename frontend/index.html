@@ -52,17 +52,11 @@
                 <a href="#" class="nav-link" data-section="admin">
                     <i class="fas fa-users-cog"></i> Admin
                 </a>
-                <a href="#" class="nav-link" data-section="agent">
-                    <i class="fas fa-robot"></i> Agente IA
-                </a>
                 <a href="#" class="nav-link" data-section="cve">
                     <i class="fas fa-shield-virus"></i> CVE Intel
                 </a>
                 <a href="#" class="nav-link" data-section="explorer">
                     <i class="fas fa-folder-open"></i> Explorador
-                </a>
-                <a href="#" class="nav-link" data-section="sessions">
-                    <i class="fas fa-terminal"></i> Sesiones
                 </a>
                 <a href="#" class="nav-link" data-section="system">
                     <i class="fas fa-heart-pulse"></i> Sistema
@@ -269,73 +263,149 @@
                 </div>
             </section>
 
-            <!-- Scan Section -->
+            <!-- Scan Section - Professional Redesign -->
             <section id="scan-section" class="content-section">
                 <div class="section-header">
-                    <h1>Nuevo Escaneo</h1>
-                    <p>Configura y ejecuta un escaneo completo</p>
-                </div>
-
-                <div class="widget widget-lg">
-                    <div class="widget-header">
-                        <h2><i class="fas fa-cog"></i> Configuración de Escaneo</h2>
+                    <div>
+                        <span class="eyebrow">CONFIGURACIÓN DE ATAQUE</span>
+                        <h1>Nuevo Escaneo</h1>
+                        <p>Define el objetivo, ajusta la profundidad del análisis y elige los módulos de reconocimiento. Todo en un solo paso.</p>
                     </div>
-                    <form id="full-scan-form" class="full-form">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Objetivo (IP o Dominio)</label>
-                                <input type="text" name="target" class="form-input" placeholder="192.168.1.1" required>
-                            </div>
-                        </div>
-
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Tipo de Escaneo</label>
-                                <select name="scan-type" class="form-input">
-                                    <option value="quick">Rápido (5 min)</option>
-                                    <option value="standard">Estándar (15 min)</option>
-                                    <option value="deep">Profundo (30 min)</option>
-                                    <option value="custom">Personalizado</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Intensidad</label>
-                                <select name="intensity" class="form-input">
-                                    <option value="low">Baja</option>
-                                    <option value="medium" selected>Media</option>
-                                    <option value="high">Alta</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>
-                                    <input type="checkbox" name="dns-enum" checked> Enumeración DNS
-                                </label>
-                            </div>
-                            <div class="form-group">
-                                <label>
-                                    <input type="checkbox" name="service-detect" checked> Detección de Servicios
-                                </label>
-                            </div>
-                            <div class="form-group">
-                                <label>
-                                    <input type="checkbox" name="web-crawl" checked> Crawling Web
-                                </label>
-                            </div>
-                            <div class="form-group">
-                                <label>
-                                    <input type="checkbox" name="nikto"> Baseline web avanzado / Nikto
-                                </label>
-                            </div>
-                        </div>
-
-                        <button type="submit" class="btn btn-primary btn-lg">
-                            <i class="fas fa-play"></i> Iniciar Escaneo
+                    <div class="hero-actions">
+                        <button type="button" class="btn btn-secondary" data-command-section="history">
+                            <i class="fas fa-clock-rotate-left"></i> Historial
                         </button>
-                    </form>
+                    </div>
                 </div>
+
+                <form id="full-scan-form">
+                    <div class="dashboard-grid" style="margin-bottom: 1rem;">
+                        <!-- Target Card -->
+                        <div class="widget widget-lg" style="grid-column: span 12;">
+                            <div class="widget-header">
+                                <h2><i class="fas fa-bullseye"></i> Objetivo</h2>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group" style="grid-column: span 12;">
+                                    <label>IP o dominio del objetivo</label>
+                                    <div style="display: flex; gap: 0.65rem; align-items: flex-start;">
+                                        <input type="text" name="target" class="form-input" placeholder="192.168.1.1, ejemplo.com, 10.10.10.0/24" required style="flex: 1; min-height: 48px; font-size: 1rem;">
+                                    </div>
+                                    <small style="color: var(--muted); margin-top: 0.4rem; display: block;">
+                                        <i class="fas fa-info-circle"></i> 
+                                        Acepta IPs individuales, dominios o rangos CIDR (ej: 192.168.1.0/24)
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Profile & Intensity -->
+                        <div class="widget" style="grid-column: span 6;">
+                            <div class="widget-header">
+                                <h2><i class="fas fa-gauge-high"></i> Perfil de escaneo</h2>
+                            </div>
+                            <div class="form-group">
+                                <label>Profundidad</label>
+                                <select name="scan-type" class="form-input">
+                                    <option value="quick">Rápido — solo puertos comunes (5 min)</option>
+                                    <option value="standard" selected>Estándar — equilibrio velocidad / cobertura (15 min)</option>
+                                    <option value="deep">Profundo — escaneo exhaustivo (30+ min)</option>
+                                    <option value="custom">Personalizado — elige cada módulo</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-top: 1rem;">
+                                <label>Intensidad de pruebas</label>
+                                <select name="intensity" class="form-input">
+                                    <option value="low">Baja — pruebas no intrusivas</option>
+                                    <option value="medium" selected>Media — balance entre sigilo y profundidad</option>
+                                    <option value="high">Alta — máximo detalle (puede ser detectado)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Scan Summary Card -->
+                        <div class="widget" style="grid-column: span 6;">
+                            <div class="widget-header">
+                                <h2><i class="fas fa-circle-info"></i> Resumen del escaneo</h2>
+                            </div>
+                            <div id="scan-summary" style="display: flex; flex-direction: column; gap: 0.65rem;">
+                                <div style="display: flex; justify-content: space-between; padding: 0.5rem 0.75rem; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                                    <span style="color: var(--muted); font-size: 0.78rem;">Tipo</span>
+                                    <span style="color: var(--text); font-weight: 700; font-size: 0.85rem;" id="summary-scan-type">Estándar (15 min)</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; padding: 0.5rem 0.75rem; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                                    <span style="color: var(--muted); font-size: 0.78rem;">Intensidad</span>
+                                    <span style="color: var(--text); font-weight: 700; font-size: 0.85rem;" id="summary-intensity">Media</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; padding: 0.5rem 0.75rem; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                                    <span style="color: var(--muted); font-size: 0.78rem;">Módulos activos</span>
+                                    <span style="color: var(--text); font-weight: 700; font-size: 0.85rem;" id="summary-modules">3 / 4</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; padding: 0.5rem 0.75rem; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                                    <span style="color: var(--muted); font-size: 0.78rem;">Estado</span>
+                                    <span style="color: #0f9f8d; font-weight: 700; font-size: 0.85rem;">Listo</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Modules Card -->
+                        <div class="widget widget-lg" style="grid-column: span 12;">
+                            <div class="widget-header">
+                                <h2><i class="fas fa-puzzle-piece"></i> Módulos de reconocimiento</h2>
+                                <small style="color: var(--muted);">Activa o desactiva según lo que necesites descubrir</small>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group" style="grid-column: span 3;">
+                                    <label class="check-row" style="display: flex; align-items: center; padding: 0.75rem 1rem; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; background: rgba(255,255,255,0.02); cursor: pointer; transition: all 0.2s; margin: 0;">
+                                        <input type="checkbox" name="dns-enum" checked style="margin-right: 0.6rem;">
+                                        <div style="flex: 1;">
+                                            <strong style="display: block; color: var(--text); font-size: 0.85rem;">Enumeración DNS</strong>
+                                            <small style="color: var(--muted); font-size: 0.72rem;">Registros, subdominios y zonas</small>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="form-group" style="grid-column: span 3;">
+                                    <label class="check-row" style="display: flex; align-items: center; padding: 0.75rem 1rem; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; background: rgba(255,255,255,0.02); cursor: pointer; transition: all 0.2s; margin: 0;">
+                                        <input type="checkbox" name="service-detect" checked style="margin-right: 0.6rem;">
+                                        <div style="flex: 1;">
+                                            <strong style="display: block; color: var(--text); font-size: 0.85rem;">Detección de servicios</strong>
+                                            <small style="color: var(--muted); font-size: 0.72rem;">Versiones, banners y SO</small>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="form-group" style="grid-column: span 3;">
+                                    <label class="check-row" style="display: flex; align-items: center; padding: 0.75rem 1rem; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; background: rgba(255,255,255,0.02); cursor: pointer; transition: all 0.2s; margin: 0;">
+                                        <input type="checkbox" name="web-crawl" checked style="margin-right: 0.6rem;">
+                                        <div style="flex: 1;">
+                                            <strong style="display: block; color: var(--text); font-size: 0.85rem;">Crawling web</strong>
+                                            <small style="color: var(--muted); font-size: 0.72rem;">Rutas, directorios y tecnologías</small>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="form-group" style="grid-column: span 3;">
+                                    <label class="check-row" style="display: flex; align-items: center; padding: 0.75rem 1rem; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; background: rgba(255,255,255,0.02); cursor: pointer; transition: all 0.2s; margin: 0;">
+                                        <input type="checkbox" name="nikto" style="margin-right: 0.6rem;">
+                                        <div style="flex: 1;">
+                                            <strong style="display: block; color: var(--text); font-size: 0.85rem;">Nikto (web avanzado)</strong>
+                                            <small style="color: var(--muted); font-size: 0.72rem;">Vulnerabilidades web</small>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Bar -->
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.5rem; border: 1px solid rgba(255,255,255,0.06); border-radius: var(--radius); background: linear-gradient(115deg, rgba(15, 159, 141, 0.06), transparent 36%);">
+                        <div>
+                            <strong style="color: var(--text); display: block;">¿Listo para comenzar?</strong>
+                            <small style="color: var(--muted);">El escaneo se ejecutará en segundo plano. Puedes monitorear el progreso en <strong>Sesión Activa</strong>.</small>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-lg" style="min-width: 200px; justify-content: center;">
+                            <i class="fas fa-play"></i> Iniciar escaneo
+                        </button>
+                    </div>
+                </form>
             </section>
 
             <section id="scan-detail-section" class="content-section">
@@ -700,131 +770,6 @@
                 </div>
             </section>
 
-            <!-- Sessions Section -->
-            <section id="sessions-section" class="content-section">
-                <div class="section-header">
-                    <h1>Sesiones Activas</h1>
-                    <p>Gestiona sesiones meterpreter, bindshell y terminales interactivas</p>
-                    <div class="section-actions">
-                        <span class="badge" id="sessions-count-badge">0 sesiones</span>
-                        <button type="button" id="sessions-refresh-btn" class="btn btn-sm btn-secondary">
-                            <i class="fas fa-sync-alt"></i> Actualizar
-                        </button>
-                    </div>
-                </div>
-
-                <div class="sessions-layout">
-                    <!-- Left: Session List -->
-                    <div class="sessions-list-panel">
-                        <div class="sessions-list-header">
-                            <input type="text" id="sessions-filter" class="form-input form-input-sm" placeholder="Filtrar sesiones...">
-                            <span id="sessions-count" class="sessions-count-label">0</span>
-                            <button type="button" class="btn btn-sm btn-primary" id="sessions-new-btn" title="Nueva sesión">
-                                <i class="fas fa-plus"></i>
-                            </button>
-                        </div>
-                        <div id="sessions-list" class="sessions-list">
-                            <div class="empty-state"><i class="fas fa-plug"></i><p>No hay sesiones activas</p><small>Lanza un exploit o escaneo para obtener una sesión</small></div>
-                        </div>
-                    </div>
-
-                    <!-- Right: Terminal -->
-                    <div class="sessions-terminal-panel">
-                        <div id="sessions-terminal-header" class="sessions-terminal-header">
-                            <span id="sessions-terminal-title"><i class="fas fa-terminal"></i> Terminal</span>
-                            <div class="sessions-terminal-actions">
-                                <button type="button" id="sessions-clear-btn" class="btn btn-sm btn-secondary" title="Limpiar pantalla">
-                                    <i class="fas fa-eraser"></i>
-                                </button>
-                                <button type="button" id="sessions-disconnect-btn" class="btn btn-sm btn-danger" disabled title="Desconectar sesión">
-                                    <i class="fas fa-plug"></i> Desconectar
-                                </button>
-                            </div>
-                        </div>
-                        <div id="sessions-terminal-body" class="sessions-terminal-body">
-                            <div class="empty-state" id="sessions-terminal-empty">
-                                <i class="fas fa-hand-pointer"></i>
-                                <p>Selecciona una sesión para interactuar</p>
-                            </div>
-                            <div id="sessions-terminal-output" class="sessions-terminal-output" style="display:none"></div>
-                        </div>
-                        <div id="sessions-terminal-input-row" class="sessions-terminal-input" style="display:none">
-                            <span class="sessions-terminal-prompt" id="sessions-prompt">$</span>
-                            <input type="text" id="sessions-command-input" class="form-input sessions-cmd-input" placeholder="Escribe un comando..." autofocus spellcheck="false" autocomplete="off">
-                            <button type="button" id="sessions-send-btn" class="btn btn-primary btn-sm" title="Enviar (Enter)">
-                                <i class="fas fa-paper-plane"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Agent v2 Section -->
-            <section id="agent-section" class="content-section">
-                <div class="section-header">
-                    <h1>Agente Autónomo v2</h1>
-                    <p>La IA decide qué herramientas usar, cuándo y cómo — sin restricciones predefinidas</p>
-                </div>
-                <div class="dashboard-grid">
-                    <div class="widget widget-lg">
-                        <div class="widget-header">
-                            <h2><i class="fas fa-rocket"></i> Lanzar agente</h2>
-                        </div>
-                        <form id="agent-form" class="full-form">
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label>Objetivo</label>
-                                    <input type="text" id="agent-target" class="form-input" placeholder="192.168.1.1" required>
-                                </div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label>LHOST (tu IP para reverse shells)</label>
-                                    <input type="text" id="agent-lhost" class="form-input" placeholder="Auto-detect">
-                                </div>
-                                <div class="form-group">
-                                    <label>LPORT</label>
-                                    <input type="number" id="agent-lport" class="form-input" value="4444">
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label>Datos de reconocimiento (opcional, pega salida de nmap)</label>
-                                <textarea id="agent-recon" class="form-input" rows="6" placeholder="Si ya tienes datos de reconocimiento, pégalos aquí para que el agente trabaje sobre ellos"></textarea>
-                            </div>
-                            <button type="submit" class="btn btn-primary btn-lg">
-                                <i class="fas fa-play"></i> Iniciar agente autónomo
-                            </button>
-                        </form>
-                        <div id="agent-progress" style="display:none;margin-top:16px">
-                            <div class="progress-bar"><div class="progress-fill"></div></div>
-                            <p class="progress-text">Agente trabajando... <span id="agent-scan-id"></span></p>
-                        </div>
-                    </div>
-                    <div class="widget widget-lg">
-                        <div class="widget-header">
-                            <h2><i class="fas fa-stream"></i> Transcripción del agente</h2>
-                        </div>
-                        <div id="agent-transcript" class="log-list">
-                            <div class="empty-state"><i class="fas fa-robot"></i><p>El transcripto aparecerá aquí</p></div>
-                        </div>
-                    </div>
-                    <div class="widget widget-lg">
-                        <div class="widget-header">
-                            <h2><i class="fas fa-terminal"></i> Comando manual al agente</h2>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <input type="text" id="agent-manual-cmd" class="form-input" placeholder="Ej: nmap -sV 192.168.1.1">
-                            </div>
-                            <button type="button" class="btn btn-primary" id="agent-manual-btn">
-                                <i class="fas fa-play"></i> Ejecutar
-                            </button>
-                        </div>
-                        <pre id="agent-manual-output" class="terminal-output">Salida del comando manual</pre>
-                    </div>
-                </div>
-            </section>
-
             <!-- AI Chat Section -->
             <section id="chat-section" class="content-section">
                 <div class="section-header">
@@ -859,11 +804,6 @@
                                 <i class="fas fa-terminal"></i>
                                 <span>Escaneo activo</span>
                                 <small id="ctx-scan">ninguno</small>
-                            </div>
-                            <div class="chat-context-item" onclick="showSection('agent')">
-                                <i class="fas fa-robot"></i>
-                                <span>Agente autónomo</span>
-                                <small id="ctx-agent">inactivo</small>
                             </div>
                             <div class="chat-context-item" onclick="showSection('cve')">
                                 <i class="fas fa-shield-virus"></i>
@@ -1608,11 +1548,6 @@
                     <span><strong>Chat IA</strong><small>Conversación con contexto completo del sistema</small></span>
                     <i class="fas fa-arrow-right"></i>
                 </button>
-                <button type="button" class="command-item" data-command-section="agent">
-                    <span class="command-item-icon"><i class="fas fa-robot"></i></span>
-                    <span><strong>Agente IA</strong><small>Lanzar agente autónomo de pentesting</small></span>
-                    <i class="fas fa-arrow-right"></i>
-                </button>
                 <button type="button" class="command-item" data-command-section="tools">
                     <span class="command-item-icon"><i class="fas fa-toolbox"></i></span>
                     <span><strong>Herramientas</strong><small>Port scan, web scan, brute force, shells</small></span>
@@ -1626,11 +1561,6 @@
                 <button type="button" class="command-item" data-command-section="explorer">
                     <span class="command-item-icon"><i class="fas fa-folder-open"></i></span>
                     <span><strong>Explorador</strong><small>Archivos, DBs y evidencias</small></span>
-                    <i class="fas fa-arrow-right"></i>
-                </button>
-                <button type="button" class="command-item" data-command-section="sessions">
-                    <span class="command-item-icon"><i class="fas fa-terminal"></i></span>
-                    <span><strong>Sesiones</strong><small>Terminal interactiva para sesiones activas</small></span>
                     <i class="fas fa-arrow-right"></i>
                 </button>
                 <button type="button" class="command-item" data-command-section="system">
