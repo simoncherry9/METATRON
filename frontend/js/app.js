@@ -187,11 +187,15 @@ function getAuthHeaders(includeJson = false) {
 async function authenticate() {
     savePenToolApiKey(document.getElementById('api-key-input')?.value?.trim() || pentoolApiKey);
     try {
+        const controller = new AbortController();
+        const authTimer = setTimeout(() => controller.abort(), 8000);
         const response = await fetch(`${API_BASE_URL}/token`, {
             method: 'POST',
+            signal: controller.signal,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ api_key: pentoolApiKey }),
         });
+        clearTimeout(authTimer);
 
         if (!response.ok) {
             setStatusBadge('api-status', false);
