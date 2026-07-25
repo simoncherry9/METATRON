@@ -84,9 +84,11 @@ from llm import analyse_target, ask_lm_studio
 from llm_config import (
     get_provider_presets,
     list_available_models,
+    list_available_models_async,
     load_llm_config,
     normalize_llm_config,
     probe_llm_connection,
+    probe_llm_connection_async,
     public_llm_config,
     save_llm_config,
 )
@@ -1900,7 +1902,8 @@ async def update_llm_settings(request: LLMConfigRequest, api_key: str = Security
 async def get_llm_models(api_key: str = Security(verify_api_key)):
     try:
         config = load_llm_config()
-        return {"models": list_available_models(config), "config": public_llm_config(config)}
+        models = await list_available_models_async(config)
+        return {"models": models, "config": public_llm_config(config)}
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Could not fetch models: {exc}")
 
@@ -1909,7 +1912,8 @@ async def get_llm_models(api_key: str = Security(verify_api_key)):
 async def preview_llm_models(request: LLMConfigRequest, api_key: str = Security(verify_api_key)):
     try:
         config = _effective_llm_config(request)
-        return {"models": list_available_models(config), "config": public_llm_config(config)}
+        models = await list_available_models_async(config)
+        return {"models": models, "config": public_llm_config(config)}
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Could not fetch models: {exc}")
 
@@ -1917,7 +1921,7 @@ async def preview_llm_models(request: LLMConfigRequest, api_key: str = Security(
 @app.post("/settings/llm/test")
 async def test_llm_settings(request: Optional[LLMConfigRequest] = None, api_key: str = Security(verify_api_key)):
     try:
-        return probe_llm_connection(_effective_llm_config(request))
+        return await probe_llm_connection_async(_effective_llm_config(request))
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"LLM connection failed: {exc}")
 

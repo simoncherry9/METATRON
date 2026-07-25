@@ -4,6 +4,7 @@ PenTool - llm_config.py
 Provider catalog, persisted LLM configuration and inference adapters.
 """
 
+import asyncio
 import json
 import os
 import time
@@ -329,6 +330,10 @@ def list_available_models(config: Dict[str, Any] | None = None) -> List[str]:
     return sorted({model for model in models if model})
 
 
+async def list_available_models_async(config: Dict[str, Any] | None = None) -> List[str]:
+    return await asyncio.to_thread(list_available_models, config)
+
+
 def _extract_openai_content(data: Dict[str, Any]) -> str:
     choices = data.get("choices") or []
     if not choices:
@@ -344,6 +349,10 @@ def _extract_openai_content(data: Dict[str, Any]) -> str:
                 parts.append(str(item["text"]))
         return "\n".join(parts).strip()
     return str(content or message.get("reasoning_content") or "").strip()
+
+
+async def run_llm_chat_async(messages: List[Dict[str, str]], config: Dict[str, Any] | None = None) -> str:
+    return await asyncio.to_thread(run_llm_chat, messages, config)
 
 
 def run_llm_chat(messages: List[Dict[str, str]], config: Dict[str, Any] | None = None) -> str:
@@ -388,6 +397,10 @@ def run_llm_chat(messages: List[Dict[str, str]], config: Dict[str, Any] | None =
     )
     response.raise_for_status()
     return _extract_openai_content(response.json())
+
+
+async def probe_llm_connection_async(config: Dict[str, Any] | None = None) -> Dict[str, Any]:
+    return await asyncio.to_thread(probe_llm_connection, config)
 
 
 def probe_llm_connection(config: Dict[str, Any] | None = None) -> Dict[str, Any]:
