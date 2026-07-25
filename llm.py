@@ -73,19 +73,26 @@ def ask_lm_studio(messages: list) -> str:
         print(f"[*] Timeout: {config.get('timeout', '?')}s")
 
         if not model:
-            print("[!] No LLM model configured - checking config file...")
-            # Try reading the file directly to debug
+            debug_info = ""
             try:
-                import json, os
+                import json, os, sys
                 from llm_config import CONFIG_PATH
-                with open(CONFIG_PATH, "r") as fh:
-                    raw = json.load(fh)
-                print(f"[!] Config file raw model field: {repr(raw.get('model'))}")
-                print(f"[!] Config file raw provider: {repr(raw.get('provider'))}")
-                print(f"[!] Config file keys: {list(raw.keys())}")
+                debug_info += f"\n[CONFIG_PATH] {CONFIG_PATH}"
+                debug_info += f"\n[EXISTS] {os.path.exists(CONFIG_PATH)}"
+                if os.path.exists(CONFIG_PATH):
+                    with open(CONFIG_PATH, "r") as fh:
+                        raw = json.load(fh)
+                    debug_info += f"\n[FILE model] {repr(raw.get('model'))}"
+                    debug_info += f"\n[FILE provider] {repr(raw.get('provider'))}"
+                    debug_info += f"\n[FILE keys] {list(raw.keys())}"
+                debug_info += f"\n[load_llm_config() model] {repr(model)}"
+                debug_info += f"\n[load_llm_config() provider] {repr(provider)}"
+                debug_info += f"\n[llm module file] {__file__}"
+                debug_info += f"\n[llm_config module file] {getattr(sys.modules.get('llm_config'), '__file__', 'NOT IMPORTED')}"
+                debug_info += f"\n[PYTHONPATH] {sys.path[:3]}"
             except Exception as read_err:
-                print(f"[!] Could not read config file for debug: {read_err}")
-            return "[!] No LLM model is configured. Ve a Configuracion > LLM, selecciona un proveedor y modelo, y guarda."
+                debug_info += f"\n[DEBUG ERROR] {read_err}"
+            return f"[!] No LLM model is configured. Ve a Configuracion > LLM, selecciona un proveedor y modelo, y guarda.\n\nDiagnostico:{debug_info}"
 
         start_time = time.time()
         response = run_llm_chat(messages, config)

