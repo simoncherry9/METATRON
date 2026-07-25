@@ -2665,7 +2665,13 @@ async function loadExplorerDownloads() {
 // CHAT IA CON CONTEXTO COMPLETO
 // ============================================
 let chatHistory = [];
-let chatConversations = JSON.parse(localStorage.getItem('chatConversations') || '[]');
+let chatConversations = [];
+try {
+    chatConversations = JSON.parse(localStorage.getItem('chatConversations') || '[]') || [];
+} catch (e) {
+    chatConversations = [];
+    localStorage.removeItem('chatConversations');
+}
 
 function setupChatHandlers() {
     document.getElementById('chat-send-btn')?.addEventListener('click', sendChatMessage);
