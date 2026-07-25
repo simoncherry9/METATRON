@@ -21,12 +21,14 @@ bearer_scheme = HTTPBearer()
 
 
 def verify_api_key(api_key: str = Security(api_key_header)):
-    """Verify API key."""
+    """Verify API key (timing-safe comparison)."""
+    import secrets
     extra_keys = {key.strip() for key in os.getenv("PENTOOL_EXTRA_API_KEYS", "").split(",") if key.strip()}
     valid_keys = {API_KEY, *LEGACY_API_KEYS, *extra_keys}
-    if api_key not in valid_keys:
-        raise HTTPException(status_code=403, detail="Invalid API key")
-    return api_key
+    for valid_key in valid_keys:
+        if secrets.compare_digest(str(api_key), str(valid_key)):
+            return api_key
+    raise HTTPException(status_code=403, detail="Invalid API key")
 
 
 def verify_token(credentials: HTTPAuthorizationCredentials = Security(bearer_scheme)):

