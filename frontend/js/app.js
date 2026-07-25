@@ -666,12 +666,63 @@ function showSection(sectionName) {
     window.scrollTo(0, 0);
     if (sectionName === 'exploits') {
         loadExploitLibrary();
+        updateExploitContext();
+    }
+    if (sectionName === 'explorer') {
+        connectExplorerFromActiveScan();
     }
     if (sectionName === 'settings' && !llmProviderCatalog.length) {
         loadLlmSettings();
     }
     if (sectionName === 'system') {
         loadSystemHealth();
+    }
+}
+
+function connectExplorerFromActiveScan() {
+    const connStatus = document.getElementById('explorer-conn-status');
+    if (!connStatus) return;
+    if (activeScanId && currentScanData) {
+        connStatus.className = 'explorer-conn-status connected';
+        const icon = connStatus.querySelector('i');
+        if (icon) icon.className = 'fas fa-plug';
+        const text = connStatus.querySelector('span');
+        if (text) text.textContent = 'Conectado a ' + activeScanId;
+        explorerConnect(activeScanId);
+        explorerUpdateSessionInfo(currentScanData);
+        document.getElementById('explorer-refresh-btn').style.display = 'inline-flex';
+    } else {
+        connStatus.className = 'explorer-conn-status disconnected';
+        const icon = connStatus.querySelector('i');
+        if (icon) icon.className = 'fas fa-plug';
+        const text = connStatus.querySelector('span');
+        if (text) text.textContent = 'No hay sesión activa. Realiza un escaneo primero.';
+        explorerDisconnect();
+        document.getElementById('explorer-refresh-btn').style.display = 'none';
+    }
+}
+
+function updateExploitContext() {
+    const ctx = document.getElementById('exploits-context');
+    const info = document.getElementById('exploits-session-info');
+    const label = document.getElementById('exploits-session-label');
+    if (!ctx) return;
+    if (activeScanId && currentScanData) {
+        const access = currentScanData.access_type || 'unknown';
+        const hasRoot = currentScanData.has_root ? '✅ Root' : '⏳ No root';
+        ctx.innerHTML = `<strong>Objetivo:</strong> ${currentScanData.target || '—'} &nbsp;|&nbsp; <strong>Sesión:</strong> ${activeScanId} &nbsp;|&nbsp; <strong>Acceso:</strong> ${access} ${hasRoot}`;
+        ctx.style.color = 'var(--text)';
+        if (info) info.style.display = 'block';
+        if (label) label.textContent = `${currentScanData.target || ''}  ·  ${access}`;
+        // Pre-fill exploit target field
+        const targetInput = document.getElementById('exploit-target');
+        if (targetInput && currentScanData.target && !targetInput.value) {
+            targetInput.value = currentScanData.target;
+        }
+    } else {
+        ctx.innerHTML = 'Sin sesión activa. Los exploits se mostrarán aquí según el objetivo.';
+        ctx.style.color = 'var(--muted)';
+        if (info) info.style.display = 'none';
     }
 }
 
@@ -814,59 +865,259 @@ function createReportActions(slNo) {
     return wrapper;
 }
 
+// ─── Phase icons for timeline ───
+const PHASE_ICONS = {
+    reconnaissance:    'fa-magnifying-glass',
+    scanning:          'fa-network-wired',
+    enumeration:       'fa-list',
+    vulnerability:     'fa-shield-halved',
+    exploitation:      'fa-bolt',
+    metasploit:        'fa-skull',
+    post_exploitation: 'fa-user-secret',
+    ai_actions:        'fa-brain',
+    terminal:          'fa-terminal',
+    privilege:         'fa-arrow-up',
+    root:              'fa-crown',
+    paused:            'fa-pause',
+    completed:         'fa-check-circle',
+    failed:            'fa-xmark-circle',
+    command:           'fa-terminal',
+    default:           'fa-circle',
+};
+
+function phaseIcon(phase) {
+    const icon = PHASE_ICONS[phase] || PHASE_ICONS.default;
+    return `<i class="fas ${icon}" style="width: 16px; text-align: center;"></i>`;
+}
+
+function phaseColor(phase) {
+    const colors = {
+        reconnaissance:    '#4fc3f7',
+        scanning:          '#81c784',
+        enumeration:       '#aed581',
+        vulnerability:     '#ff8a65',
+        exploitation:      '#ff7043',
+        metasploit:        '#ce93d8',
+        post_exploitation: '#f06292',
+        ai_actions:        '#4dd0e1',
+        terminal:          '#90a4ae',
+        privilege:         '#ffd54f',
+        root:              '#ffd700',
+        paused:            '#ffb74d',
+        completed:         '#66bb6a',
+        failed:            '#ef5350',
+        command:           '#90a4ae',
+    };
+    return colors[phase] || '#757575';
+}
+
 function renderScanDetails(scan) {
     currentScanData = scan;
-    setTextIfPresent('scan-detail-title', `Sesion de Escaneo: ${scan.target || scan.scan_id || '-'}`);
-    setTextIfPresent('scan-detail-subtitle', `${scan.scan_id || '-'} | ${scan.access_type ? `Acceso: ${scan.access_type}` : 'Seguimiento en vivo del objetivo'}`);
-    setTextIfPresent('scan-detail-id', scan.scan_id || '-');
-    setTextIfPresent('scan-session-id', scan.session_id || (scan.access_type === 'bindshell' ? 'bindshell:1524' : 'No disponible'));
-    setTextIfPresent('scan-root-status', scan.has_root ? 'SI' : 'NO');
-    setTextIfPresent('detail-status', (scan.status || '-').toUpperCase());
-    setTextIfPresent('detail-phase', (scan.phase || '-').toUpperCase());
-    setTextIfPresent('detail-risk', (scan.risk_level || '-').toUpperCase());
+    const status = String(scan.status || '').toLowerCase();
+    // Keep explorer and exploit context in sync
+    explorerUpdateSessionInfo(scan);
+    updateExploitContext();
+    const isFinished = ['completed', 'failed', 'paused'].includes(status);
+
+    // ── Header ──
+    setTextIfPresent('scan-detail-eyebrow', isFinished ? 'SESION FINALIZADA' : 'SESION ACTIVA');
+    setTextIfPresent('scan-detail-title', scan.target || scan.scan_id || 'Escaneo');
+    setTextIfPresent('scan-detail-subtitle', scan.scan_id ? `${scan.scan_id}${scan.access_type ? ` · ${scan.access_type}` : ''}` : '');
+
+    // ── Meta row ──
+    const statusChip = document.getElementById('sd-chip-status');
+    if (statusChip) statusChip.dataset.status = isFinished ? 'completed' : 'running';
+    setTextIfPresent('sd-status-text', (scan.status || 'QUEUED').toUpperCase());
+    setTextIfPresent('sd-phase-text', (scan.phase || 'queue').toUpperCase());
+    setTextIfPresent('sd-risk-text', (scan.risk_level || '—').toUpperCase());
+    setTextIfPresent('sd-type-text', (scan.scan_type || 'standard').toUpperCase());
+    setTextIfPresent('sd-intensity-text', (scan.intensity || 'medium').toUpperCase());
+
+    // ── Phase stepper ──
+    updatePhaseStepper(scan.phase);
+
+    // ── Duration timer ──
+    if (isFinished) {
+        stopDurationTimer();
+        if (scan.created_at && scan.completed_at) {
+            const diff = new Date(scan.completed_at) - new Date(scan.created_at);
+            const mins = Math.floor(diff / 60000);
+            const secs = Math.floor((diff % 60000) / 1000);
+            const badge = document.getElementById('scan-duration-badge');
+            if (badge) { badge.style.display = 'inline-flex'; }
+            document.getElementById('scan-duration-text').textContent =
+                diff < 60000 ? `${secs}s` : `${mins}m ${secs}s`;
+        } else {
+            const badge = document.getElementById('scan-duration-badge');
+            if (badge) { badge.style.display = 'none'; }
+        }
+    } else {
+        startDurationTimer(scan.created_at);
+    }
 
     const events = scan.events || [];
     const commands = scan.commands || [];
 
-    renderLogList('scan-events-list', events, (event) =>
-        makeLogEntry(event.title, event.phase, event.created_at, event.content)
-    );
-    renderLogList('scan-commands-list', commands, (command) =>
-        makeLogEntry(command.command, 'command', command.timestamp, command.output)
-    );
+    // ── Timeline ──
+    renderTimeline(events);
+    const eventsBadge = document.getElementById('events-count-badge');
+    if (eventsBadge) eventsBadge.textContent = events.length;
 
-    // Load and render vulnerabilities for this scan
+    // ── Commands ──
+    renderLogList('scan-commands-list', commands, (cmd) =>
+        makeTimelineEntry(cmd.command, 'command', cmd.timestamp, cmd.output)
+    );
+    const cmdBadge = document.getElementById('commands-count-badge');
+    if (cmdBadge) cmdBadge.textContent = commands.length;
+
+    // ── Vulns ──
     if (scan.scan_id) {
         loadScanVulnerabilities(scan.scan_id, scan.sl_no);
     }
 
+    // ── LLM & Raw ──
     setTextIfPresent('scan-llm-response', scan.llm_response || 'Aun no hay respuesta del modelo.');
     setTextIfPresent('scan-raw-output', scan.raw_scan || 'Aun no hay salida de recon.');
+
+    // ── Exploitation ──
     renderLogList('scan-exploitation-list', events.filter((event) =>
-        ['exploitation', 'metasploit', 'post_exploitation', 'ai_actions', 'terminal', 'paused'].includes(event.phase)
+        ['exploitation', 'metasploit', 'post_exploitation', 'ai_actions', 'terminal', 'paused', 'privilege', 'root'].includes(event.phase)
         || String(event.event_type || '').includes('exploit')
         || String(event.event_type || '').includes('msf')
         || String(event.event_type || '').includes('ai_action')
         || String(event.event_type || '').includes('root')
-    ), (event) => makeLogEntry(event.title, event.phase, event.created_at, event.content));
+    ), (event) => makeTimelineEntry(event.title, event.phase, event.created_at, event.content, event.event_type));
 
+    // ── Pause / Rescan ──
     const pauseBtn = document.getElementById('pause-scan-btn');
     if (pauseBtn) {
-        const canPause = !['completed', 'failed', 'paused'].includes(String(scan.status || '').toLowerCase());
-        pauseBtn.disabled = !canPause;
-        pauseBtn.style.display = canPause ? 'inline-flex' : 'none';
+        pauseBtn.disabled = isFinished;
+        pauseBtn.style.display = isFinished ? 'none' : 'inline-flex';
+    }
+    const rescanBtn = document.getElementById('rescan-btn');
+    if (rescanBtn) {
+        rescanBtn.style.display = isFinished ? 'inline-flex' : 'none';
+    }
+
+    // ── Collapsible raw output ──
+    const rawToggle = document.getElementById('sd-raw-toggle');
+    const rawBody = document.getElementById('sd-raw-body');
+    const rawArrow = document.getElementById('sd-raw-arrow');
+    if (rawToggle && rawBody) {
+        let rawOpen = true;
+        rawToggle.onclick = () => {
+            rawOpen = !rawOpen;
+            rawBody.style.display = rawOpen ? 'block' : 'none';
+            if (rawArrow) rawArrow.style.transform = rawOpen ? 'rotate(0deg)' : 'rotate(-90deg)';
+        };
     }
 
     updateTerminalState(scan);
 }
 
+// ─── Phase stepper ───
+function updatePhaseStepper(currentPhase) {
+    const steps = document.querySelectorAll('.sd-step');
+    const phaseOrder = ['queued','reconnaissance','scanning','enumeration','vulnerability','exploitation','post_exploitation','completed'];
+    const idx = phaseOrder.indexOf((currentPhase || 'queued').toLowerCase());
+    steps.forEach((step, i) => {
+        step.classList.remove('active', 'done');
+        if (i < idx) step.classList.add('done');
+        else if (i === idx) step.classList.add('active');
+    });
+}
+
+// ─── Duration timer ───
+let durationTimerInterval = null;
+function startDurationTimer(createdAt) {
+    stopDurationTimer();
+    const badge = document.getElementById('scan-duration-badge');
+    const text = document.getElementById('scan-duration-text');
+    if (!badge || !text) return;
+    if (!createdAt) { badge.style.display = 'none'; return; }
+    badge.style.display = 'inline-flex';
+    const start = new Date(createdAt).getTime();
+    function tick() {
+        const diff = Date.now() - start;
+        const mins = Math.floor(diff / 60000);
+        const secs = Math.floor((diff % 60000) / 1000);
+        text.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+    tick();
+    durationTimerInterval = setInterval(tick, 1000);
+}
+function stopDurationTimer() {
+    if (durationTimerInterval) {
+        clearInterval(durationTimerInterval);
+        durationTimerInterval = null;
+    }
+}
+
+// ─── Timeline entry ───
+const TL_ICONS = {
+    reconnaissance: 'fa-magnifying-glass', scanning: 'fa-network-wired',
+    enumeration: 'fa-list', vulnerability: 'fa-shield-halved',
+    exploitation: 'fa-bolt', metasploit: 'fa-skull',
+    post_exploitation: 'fa-user-secret', ai_actions: 'fa-brain',
+    terminal: 'fa-terminal', privilege: 'fa-arrow-up',
+    root: 'fa-crown', paused: 'fa-pause',
+    completed: 'fa-check-circle', failed: 'fa-xmark-circle',
+    command: 'fa-terminal', default: 'fa-circle',
+};
+const TL_COLORS = {
+    reconnaissance: '#176bdf', scanning: '#118469',
+    enumeration: '#6a7b91', vulnerability: '#c47b16',
+    exploitation: '#c73f4f', metasploit: '#7b4f9e',
+    post_exploitation: '#c73f4f', ai_actions: '#176bdf',
+    terminal: '#6a7b91', privilege: '#c47b16',
+    root: '#c47b16', paused: '#c47b16',
+    completed: '#118469', failed: '#c73f4f',
+    command: '#6a7b91', default: '#9aa8ba',
+};
+
+function makeTimelineEntry(title, phase, timestamp, content) {
+    const p = (phase || '').toLowerCase();
+    const color = TL_COLORS[p] || TL_COLORS.default;
+    const icon = TL_ICONS[p] || TL_ICONS.default;
+    const div = document.createElement('div');
+    div.className = 'sd-tl-item';
+    div.innerHTML = `
+        <div class="sd-tl-icon" style="background:${color}1a;color:${color}"><i class="fas ${icon}"></i></div>
+        <div class="sd-tl-body">
+            <div class="sd-tl-title">${escapeHtml(title || 'Evento')}</div>
+            <div class="sd-tl-meta"><span>${p.replace(/_/g, ' ')}</span>${timestamp ? `<span>·</span><span>${formatDate(timestamp)}</span>` : ''}</div>
+            ${content ? `<div class="sd-tl-content">${escapeHtml(content.length > 200 ? content.slice(0,200)+'...' : content)}</div>` : ''}
+        </div>`;
+    return div;
+}
+
+function renderTimeline(events) {
+    const container = document.getElementById('scan-events-list');
+    if (!container) return;
+    container.innerHTML = '';
+    if (!events || events.length === 0) {
+        container.innerHTML = '<div class="sd-empty"><i class="fas fa-hourglass-half"></i><p>Esperando eventos...</p></div>';
+        return;
+    }
+    const frag = document.createDocumentFragment();
+    events.forEach((event) => frag.appendChild(makeTimelineEntry(event.title, event.phase, event.created_at, event.content)));
+    container.appendChild(frag);
+}
+
+// ─── Terminal State ───
 function updateTerminalState(scan) {
     const sessionId = scan.session_id || null;
     const isBindShell = scan.access_type === 'bindshell';
     const hasRoot = scan.has_root;
-    setTextIfPresent('scan-session-id', sessionId || (isBindShell ? 'bindshell:1524' : 'No disponible'));
-    setTextIfPresent('scan-root-status', hasRoot ? 'SI' : 'NO');
 
+    setTextIfPresent('sd-session-badge', sessionId ? sessionId : (isBindShell ? 'bindshell:1524' : '—'));
+    const rootBadge = document.getElementById('sd-root-badge');
+    if (rootBadge) {
+        rootBadge.textContent = hasRoot ? 'ROOT' : 'no root';
+        rootBadge.className = 'sd-badge' + (hasRoot ? ' sd-badge-success' : '');
+    }
+
+    const statusBadge = document.getElementById('terminal-status-badge');
     const executeBtn = document.getElementById('terminal-command-btn');
     const analyzeBtn = document.getElementById('terminal-analyze-btn');
     const chatBtn = document.getElementById('terminal-chat-btn');
@@ -876,37 +1127,44 @@ function updateTerminalState(scan) {
 
     if (!executeBtn || !analyzeBtn || !chatBtn || !terminalOutput || !sessionActions) return;
 
-    // Enable chat if we have a scan
     chatBtn.disabled = !scan.scan_id;
-    if (sensitiveBtn) sensitiveBtn.disabled = !hasRoot;
 
     if (!hasRoot) {
         executeBtn.disabled = true;
         analyzeBtn.disabled = true;
         if (sensitiveBtn) sensitiveBtn.disabled = true;
         sessionActions.style.display = 'none';
-        if (!sessionId) {
-            terminalOutput.textContent = 'No hay sesión activa de meterpreter. Esperando acceso root...';
-        } else {
-            terminalOutput.textContent = 'Sesión Meterpreter establecida pero no se ha obtenido acceso root. Esperando elevación.';
+
+        if (statusBadge) {
+            statusBadge.textContent = '⏳ Sin root';
+            statusBadge.className = 'sd-badge';
+            statusBadge.style.cssText = 'background:rgba(196,123,22,0.1);color:#c47b16';
         }
+
+        terminalOutput.textContent = sessionId
+            ? 'Sesion establecida. Esperando elevacion de privilegios...'
+            : 'Esperando acceso root para habilitar comandos...';
     } else {
-        // Root achieved
-        sessionActions.style.display = sessionId ? 'block' : 'none';
-        if (!sessionId) {
-            // Root via bindshell or other method without Meterpreter session
-            executeBtn.disabled = false;  // Enable for bindshell
-            analyzeBtn.disabled = false;  // Enable for bindshell
-            if (!terminalOutput.textContent || terminalOutput.textContent === 'Sin salida todavia.' || terminalOutput.textContent === 'Sin salida todavía.' || terminalOutput.textContent.startsWith('No hay sesión activa') || terminalOutput.textContent.startsWith('Acceso root obtenido')) {
-                terminalOutput.textContent = isBindShell ? 'Acceso root por bindshell 1524. Puedes ejecutar comandos.' : 'Acceso root obtenido. Puedes ejecutar comandos.';
-            }
-        } else {
-            // Root via Meterpreter session
-            executeBtn.disabled = false;
-            analyzeBtn.disabled = false;
-            if (!terminalOutput.textContent || terminalOutput.textContent === 'Sin salida todavía.' || terminalOutput.textContent.startsWith('Sesión Meterpreter establecida') || terminalOutput.textContent.startsWith('No hay sesión activa') || terminalOutput.textContent.startsWith('Acceso root obtenido')) {
-                terminalOutput.textContent = 'Ingresa un comando y presiona Ejecutar comando para ver la salida.';
-            }
+        executeBtn.disabled = false;
+        analyzeBtn.disabled = false;
+        if (sensitiveBtn) sensitiveBtn.disabled = false;
+
+        if (statusBadge) {
+            statusBadge.textContent = hasRoot ? '✅ Root activo' : '⚠️ Root limitado';
+            statusBadge.className = 'sd-badge sd-badge-success';
+            statusBadge.style.cssText = '';
+        }
+
+        sessionActions.style.display = sessionId ? 'flex' : 'none';
+
+        const defaults = ['Sin salida todavia.','Sin salida todavía.','No hay sesión activa','Acceso root obtenido','Esperando acceso root','Sesion establecida.'];
+        const cur = (terminalOutput.textContent || '').trim();
+        if (defaults.some(m => cur.startsWith(m)) || cur === 'Esperando acceso root para habilitar comandos...') {
+            terminalOutput.textContent = sessionId
+                ? 'Acceso root via meterpreter. Ingresa un comando.'
+                : isBindShell
+                    ? 'Acceso root via bindshell 1524. Puedes ejecutar comandos.'
+                    : 'Acceso root obtenido. Puedes ejecutar comandos.';
         }
     }
 }
@@ -931,7 +1189,11 @@ async function executeTerminalCommand() {
         });
         lastTerminalCommand = command;
         appendTerminalOutput(command, result.output || 'Sin salida.');
-        document.getElementById('scan-root-status').textContent = result.has_root ? 'SI' : 'NO';
+        const rootBadge = document.getElementById('sd-root-badge');
+        if (rootBadge) {
+            rootBadge.textContent = result.has_root ? 'ROOT' : 'no root';
+            rootBadge.className = 'sd-badge' + (result.has_root ? ' sd-badge-success' : '');
+        }
         if (result.access_type) currentScanData.access_type = result.access_type;
         showToast('Comando ejecutado correctamente.', 'success');
         commandInput.value = '';
@@ -2067,12 +2329,16 @@ async function loadScanVulnerabilities(scanId, slNo) {
             .sort((a, b) => severityRank(a.severity) - severityRank(b.severity));
         
         const vulnsList = document.getElementById('scan-vulnerabilities-list');
+        const vulnBadge = document.getElementById('vuln-count-badge');
         if (!vulnsList) return;
         
         if (vulns.length === 0) {
             vulnsList.innerHTML = `<div class="empty-state"><i class="fas fa-shield-check"></i><p>Sin vulnerabilidades detectadas en esta sesión</p></div>`;
+            if (vulnBadge) { vulnBadge.textContent = '0'; vulnBadge.style.display = 'inline-flex'; }
             return;
         }
+
+        if (vulnBadge) { vulnBadge.textContent = vulns.length; vulnBadge.style.display = 'inline-flex'; }
 
         const fragment = document.createDocumentFragment();
         vulns.forEach((vuln) => {
@@ -2264,6 +2530,12 @@ function setupFormHandlers() {
             });
         }
     });
+
+    // Rescan button - go back to new scan section
+    const rescanBtn = document.getElementById('rescan-btn');
+    if (rescanBtn) {
+        rescanBtn.addEventListener('click', () => showSection('scan'));
+    }
 
     // Live summary updater for scan config
     const scanTypeLabels = { quick: 'Rápido (5 min)', standard: 'Estándar (15 min)', deep: 'Profundo (30+ min)', custom: 'Personalizado' };
@@ -2489,17 +2761,63 @@ function setupCVEHandlers() {
 let explorerScanId = '';
 let explorerConnected = false;
 
-function setupExplorerHandlers() {
-    document.getElementById('explorer-connect-btn')?.addEventListener('click', () => {
-        const sid = document.getElementById('explorer-scan-id').value.trim();
-        if (!sid) { showToast('Ingresa un Scan ID', 'error'); return; }
-        explorerScanId = sid;
-        explorerConnected = true;
-        document.getElementById('explorer-toolbar').style.display = 'block';
-        document.getElementById('explorer-output').textContent = 'Conectado. Usa los comandos para explorar.';
-        showToast('Conectado a sesión', 'success');
-    });
+function explorerConnect(scanId) {
+    if (!scanId) return;
+    explorerScanId = scanId;
+    explorerConnected = true;
+    const toolbar = document.getElementById('explorer-toolbar');
+    const toolbarActions = document.getElementById('explorer-toolbar-actions');
+    if (toolbar) toolbar.style.display = 'block';
+    if (toolbarActions) toolbarActions.style.display = 'flex';
+    const connStatus = document.getElementById('explorer-conn-status');
+    if (connStatus) {
+        connStatus.className = 'explorer-conn-status connected';
+        const icon = connStatus.querySelector('i');
+        if (icon) icon.className = 'fas fa-plug';
+        const text = connStatus.querySelector('span');
+        if (text) text.textContent = 'Conectado a ' + scanId;
+    }
+    const output = document.getElementById('explorer-output');
+    if (output) output.textContent = 'Conectado. Usa los comandos para explorar.';
+    loadExplorerDownloads();
+}
 
+function explorerDisconnect() {
+    explorerScanId = null;
+    explorerConnected = false;
+    const toolbar = document.getElementById('explorer-toolbar');
+    const toolbarActions = document.getElementById('explorer-toolbar-actions');
+    if (toolbar) toolbar.style.display = 'none';
+    if (toolbarActions) toolbarActions.style.display = 'none';
+    const connStatus = document.getElementById('explorer-conn-status');
+    if (connStatus) {
+        connStatus.className = 'explorer-conn-status disconnected';
+        const icon = connStatus.querySelector('i');
+        if (icon) icon.className = 'fas fa-plug';
+        const text = connStatus.querySelector('span');
+        if (text) text.textContent = 'Esperando sesión activa...';
+    }
+    const output = document.getElementById('explorer-output');
+    if (output) output.textContent = 'Desconectado.';
+}
+
+function explorerUpdateSessionInfo(scan) {
+    const infoEl = document.getElementById('explorer-session-info');
+    const labelEl = document.getElementById('explorer-session-label');
+    const targetEl = document.getElementById('explorer-session-target');
+    if (!infoEl || !labelEl || !targetEl) return;
+    if (scan && scan.scan_id) {
+        infoEl.style.display = 'block';
+        const access = scan.access_type || 'unknown';
+        const hasRoot = scan.has_root ? '✅ Root' : '⏳ No root';
+        labelEl.textContent = `${scan.scan_id}  ·  ${access}  ·  ${hasRoot}`;
+        targetEl.textContent = scan.target || '';
+    } else {
+        infoEl.style.display = 'none';
+    }
+}
+
+function setupExplorerHandlers() {
     const btnMap = {
         'explorer-ls-btn': async () => {
             const path = document.getElementById('explorer-path').value || '/';
@@ -2519,12 +2837,12 @@ function setupExplorerHandlers() {
         },
         'explorer-search-btn': async () => {
             const pattern = document.getElementById('explorer-search-pattern').value;
-            if (!pattern) { showToast('Ingresa un patrón', 'error'); return null; }
+            if (!pattern) { showToast('Ingresa un patrón', 'error'); return null; }
             return apiFetch('/api/explorer/search', { method: 'POST', body: JSON.stringify({ scan_id: explorerScanId, command: pattern }) });
         },
         'explorer-grep-btn': async () => {
             const pattern = document.getElementById('explorer-search-pattern').value;
-            if (!pattern) { showToast('Ingresa un patrón', 'error'); return null; }
+            if (!pattern) { showToast('Ingresa un patrón', 'error'); return null; }
             return apiFetch('/api/explorer/grep', { method: 'POST', body: JSON.stringify({ scan_id: explorerScanId, command: pattern }) });
         },
         'explorer-dbs-btn': async () => {
@@ -2552,17 +2870,24 @@ function setupExplorerHandlers() {
 
     for (const [id, handler] of Object.entries(btnMap)) {
         document.getElementById(id)?.addEventListener('click', async () => {
-            if (!explorerConnected && id !== 'explorer-connect-btn') {
-                showToast('Conecta primero con un Scan ID', 'error'); return;
+            if (!explorerConnected) {
+                // Try auto-connect
+                if (activeScanId && currentScanData) {
+                    explorerConnect(activeScanId);
+                } else {
+                    showToast('No hay sesión activa para explorar', 'error');
+                    return;
+                }
             }
             try {
                 const data = await handler();
                 if (!data) return;
                 const outputEl = document.getElementById('explorer-output');
+                if (!outputEl) return;
                 if (data.data && data.data.items) {
                     outputEl.textContent = data.data.items.map(i =>
-                        `${i.permissions} ${i.owner} ${i.size.toString().padStart(8)} ${i.name}`
-                    ).join('\n') || '(directorio vacío)';
+                        `${i.permissions} ${i.owner} ${String(i.size).padStart(8)} ${i.name}`
+                    ).join('\n') || '(directorio vacío)';
                 } else if (data.data && data.data.content !== undefined) {
                     outputEl.textContent = data.data.content.substring(0, 10000);
                 } else if (data.data && data.data.files) {
@@ -2584,10 +2909,22 @@ function setupExplorerHandlers() {
                     showToast(`Descargado: ${data.data.downloaded_to}`, 'success');
                 }
             } catch (err) {
-                document.getElementById('explorer-output').textContent = `Error: ${err.message}`;
+                const outputEl = document.getElementById('explorer-output');
+                if (outputEl) outputEl.textContent = `Error: ${err.message}`;
             }
         });
     }
+
+    // Refresh button
+    document.getElementById('explorer-refresh-btn')?.addEventListener('click', () => {
+        if (activeScanId) {
+            explorerConnect(activeScanId);
+            fetchActiveScan();
+        }
+    });
+
+    // Downloads refresh
+    document.getElementById('explorer-downloads-refresh')?.addEventListener('click', loadExplorerDownloads);
 }
 
 async function loadExplorerDownloads() {
@@ -2595,17 +2932,15 @@ async function loadExplorerDownloads() {
         const data = await apiFetch('/api/explorer/downloads');
         const files = data.data?.files || [];
         const el = document.getElementById('explorer-downloads-section');
+        if (!el) return;
         if (files.length === 0) {
-            el.innerHTML = '<div class="empty-state"><i class="fas fa-download"></i><p>No hay descargas aún</p></div>';
+            el.innerHTML = '<div class="sd-empty"><i class="fas fa-download"></i><p>No hay descargas aún</p></div>';
             return;
         }
         el.innerHTML = files.map(f =>
-            `<div class="activity-item">
-                <span class="activity-time">${(f.size / 1024).toFixed(1)} KB</span>
-                <span class="activity-text">
-                    <a href="/api/explorer/downloads/${f.name}" target="_blank" style="color:#0f9f8d">${f.name}</a>
-                    <small style="color:#6b7f99;display:block">${f.modified}</small>
-                </span>
+            `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0;border-bottom:1px solid #f0f3f8;font-size:0.78rem">
+                <span style="color:var(--text)">${f.name}</span>
+                <span style="color:var(--muted)">${(f.size / 1024).toFixed(1)} KB</span>
             </div>`
         ).join('');
     } catch {}

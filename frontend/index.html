@@ -409,143 +409,165 @@
             </section>
 
             <section id="scan-detail-section" class="content-section">
-                <div class="section-header">
-                    <h1 id="scan-detail-title">Sesion de Escaneo</h1>
-                    <p id="scan-detail-subtitle">Seguimiento en vivo del objetivo</p>
-                    <div class="settings-actions">
-                        <button type="button" class="btn btn-secondary" id="pause-scan-btn">
-                            <i class="fas fa-pause"></i> Pausar
-                        </button>
+                <!-- SCAN HEADER -->
+                <div class="sd-header">
+                    <div class="sd-header-top">
+                        <div class="sd-header-info">
+                            <span class="sd-eyebrow" id="scan-detail-eyebrow">SESION ACTIVA</span>
+                            <h1 class="sd-title" id="scan-detail-title">—</h1>
+                            <span class="sd-subtitle" id="scan-detail-subtitle"></span>
+                        </div>
+                        <div class="sd-header-actions">
+                            <span class="sd-duration" id="scan-duration-badge" style="display:none">
+                                <i class="fas fa-clock"></i> <span id="scan-duration-text">00:00</span>
+                            </span>
+                            <button class="sd-btn sd-btn-outline" id="pause-scan-btn"><i class="fas fa-pause"></i> Pausar</button>
+                            <button class="sd-btn sd-btn-outline" id="rescan-btn" style="display:none"><i class="fas fa-rotate"></i> Nuevo escaneo</button>
+                        </div>
+                    </div>
+                    <div class="sd-meta-row">
+                        <div class="sd-chip" id="sd-chip-status"><span class="sd-dot"></span> <span id="sd-status-text">QUEUED</span></div>
+                        <span class="sd-meta-sep">|</span>
+                        <span class="sd-meta-label">Fase:</span> <strong id="sd-phase-text">queue</strong>
+                        <span class="sd-meta-sep">|</span>
+                        <span class="sd-meta-label">Riesgo:</span> <strong id="sd-risk-text">—</strong>
+                        <span class="sd-meta-sep">|</span>
+                        <span class="sd-meta-label">Tipo:</span> <strong id="sd-type-text">—</strong>
+                        <span class="sd-meta-sep">|</span>
+                        <span class="sd-meta-label">Intensidad:</span> <strong id="sd-intensity-text">—</strong>
                     </div>
                 </div>
 
-                <div class="dashboard-grid">
-                    <div class="widget widget-lg">
-                        <div class="widget-header">
-                            <h2><i class="fas fa-satellite-dish"></i> Estado del Objetivo</h2>
-                        </div>
-                        <div class="scan-session-meta">
-                            <div class="stat-box">
-                                <div class="stat-number" id="detail-status">QUEUED</div>
-                                <div class="stat-label">Estado</div>
-                            </div>
-                            <div class="stat-box">
-                                <div class="stat-number" id="detail-phase">QUEUE</div>
-                                <div class="stat-label">Fase</div>
-                            </div>
-                            <div class="stat-box">
-                                <div class="stat-number" id="detail-risk">-</div>
-                                <div class="stat-label">Riesgo</div>
-                            </div>
-                        </div>
-                    </div>
+                <!-- PHASE STEPPER -->
+                <div class="sd-stepper" id="sd-stepper">
+                    <div class="sd-step" data-phase="queued"><div class="sd-step-circle">1</div><span>Cola</span></div>
+                    <div class="sd-step" data-phase="reconnaissance"><div class="sd-step-circle">2</div><span>Recon</span></div>
+                    <div class="sd-step" data-phase="scanning"><div class="sd-step-circle">3</div><span>Escaneo</span></div>
+                    <div class="sd-step" data-phase="enumeration"><div class="sd-step-circle">4</div><span>Enum</span></div>
+                    <div class="sd-step" data-phase="vulnerability"><div class="sd-step-circle">5</div><span>Vulns</span></div>
+                    <div class="sd-step" data-phase="exploitation"><div class="sd-step-circle">6</div><span>Exploit</span></div>
+                    <div class="sd-step" data-phase="post_exploitation"><div class="sd-step-circle">7</div><span>Post-Exp</span></div>
+                    <div class="sd-step" data-phase="completed"><div class="sd-step-circle"><i class="fas fa-check" style="font-size:12px"></i></div><span>Listo</span></div>
+                </div>
 
-                    <div class="widget widget-lg">
-                        <div class="widget-header">
-                            <h2><i class="fas fa-terminal"></i> Terminal de Compromiso</h2>
-                        </div>
-                        <div class="terminal-panel terminal-grid">
-                            <div class="terminal-block">
-                                <div class="scan-session-meta">
-                                    <div class="stat-box">
-                                        <div class="stat-number" id="scan-session-id">No disponible</div>
-                                        <div class="stat-label">Sesion</div>
-                                    </div>
-                                    <div class="stat-box">
-                                        <div class="stat-number" id="scan-root-status">NO</div>
-                                        <div class="stat-label">Root</div>
-                                    </div>
-                                </div>
-                                <div class="terminal-actions">
-                                    <input type="text" id="terminal-command-input" class="form-input" placeholder="whoami, id, uname -a">
-                                    <button type="button" class="btn btn-primary" id="terminal-command-btn" disabled>
-                                        <i class="fas fa-play"></i> Ejecutar
-                                    </button>
-                                    <button type="button" class="btn btn-secondary" id="terminal-analyze-btn" disabled>
-                                        <i class="fas fa-brain"></i> Analizar salida
-                                    </button>
-                                    <button type="button" class="btn btn-secondary" id="sensitive-search-btn" disabled>
-                                        <i class="fas fa-search-dollar"></i> Buscar datos sensibles
-                                    </button>
-                                </div>
-                                <div class="terminal-output-group">
-                                    <label>Salida</label>
-                                    <pre id="terminal-output" class="terminal-output">Sin salida todavia.</pre>
-                                </div>
-                                <div class="terminal-output-group">
-                                    <label>Analisis de IA</label>
-                                    <pre id="terminal-analysis-response" class="terminal-output">La IA analizara aqui la ultima salida.</pre>
-                                </div>
-                                <div id="session-actions" class="session-actions" style="display: none;">
-                                    <h4>Acciones de sesion Meterpreter</h4>
-                                    <div class="terminal-actions">
-                                        <button type="button" class="btn btn-secondary" id="stop-session-btn">
-                                            <i class="fas fa-stop"></i> Detener sesion
-                                        </button>
-                                        <button type="button" class="btn btn-danger" id="destroy-session-btn">
-                                            <i class="fas fa-trash"></i> Eliminar sesion
-                                        </button>
-                                    </div>
+                <!-- MAIN GRID: TWO COLUMNS -->
+                <div class="sd-grid">
+                    <!-- LEFT COLUMN -->
+                    <div class="sd-col">
+                        <!-- TIMELINE -->
+                        <div class="sd-card">
+                            <div class="sd-card-header">
+                                <h3><i class="fas fa-clock-rotate-left"></i> Timeline</h3>
+                                <span class="sd-badge" id="events-count-badge">0</span>
+                            </div>
+                            <div class="sd-card-body sd-timeline" id="scan-events-list">
+                                <div class="sd-empty">
+                                    <i class="fas fa-hourglass-half"></i>
+                                    <p>Esperando eventos...</p>
                                 </div>
                             </div>
-                            <div class="chat-block">
-                                <label>Hablar con la IA sobre esta sesion</label>
-                                <textarea id="terminal-chat-input" class="form-input terminal-chat-input" placeholder="Preguntale que significa la salida o que conviene revisar despues"></textarea>
-                                <button type="button" class="btn btn-primary" id="terminal-chat-btn" disabled>
-                                    <i class="fas fa-paper-plane"></i> Enviar a IA
-                                </button>
-                                <pre id="terminal-chat-response" class="terminal-output">La respuesta de la IA aparecera aqui.</pre>
+                        </div>
+
+                        <!-- COMMANDS -->
+                        <div class="sd-card">
+                            <div class="sd-card-header">
+                                <h3><i class="fas fa-terminal"></i> Comandos</h3>
+                                <span class="sd-badge" id="commands-count-badge">0</span>
+                            </div>
+                            <div class="sd-card-body" id="scan-commands-list">
+                                <div class="sd-empty">
+                                    <i class="fas fa-list"></i>
+                                    <p>Sin comandos aun</p>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="widget widget-lg">
-                        <div class="widget-header">
-                            <h2><i class="fas fa-stream"></i> Timeline</h2>
+                    <!-- RIGHT COLUMN -->
+                    <div class="sd-col">
+                        <!-- VULNERABILITIES -->
+                        <div class="sd-card">
+                            <div class="sd-card-header">
+                                <h3><i class="fas fa-shield-halved"></i> Vulnerabilidades</h3>
+                                <span class="sd-badge sd-badge-danger" id="vuln-count-badge">0</span>
+                            </div>
+                            <div class="sd-card-body" id="scan-vulnerabilities-list">
+                                <div class="sd-empty">
+                                    <i class="fas fa-search"></i>
+                                    <p>Escaneando...</p>
+                                </div>
+                            </div>
                         </div>
-                        <div id="scan-events-list" class="log-list">
-                            <div class="empty-state">
-                                <i class="fas fa-hourglass-half"></i>
-                                <p>Esperando eventos del escaneo</p>
+
+                        <!-- LLM OUTPUT -->
+                        <div class="sd-card">
+                            <div class="sd-card-header">
+                                <h3><i class="fas fa-brain"></i> Analisis IA</h3>
+                            </div>
+                            <div class="sd-card-body">
+                                <pre id="scan-llm-response" class="sd-pre">Aun no hay respuesta del modelo.</pre>
+                            </div>
+                        </div>
+
+                        <!-- RAW OUTPUT (collapsible) -->
+                        <div class="sd-card">
+                            <div class="sd-card-header" style="cursor:pointer" id="sd-raw-toggle">
+                                <h3><i class="fas fa-file-code"></i> Recon Consolidado</h3>
+                                <i class="fas fa-chevron-down" style="color:var(--muted);font-size:12px;transition:transform .2s" id="sd-raw-arrow"></i>
+                            </div>
+                            <div class="sd-card-body" id="sd-raw-body">
+                                <pre id="scan-raw-output" class="sd-pre">Aun no hay salida de recon.</pre>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <div class="widget widget-lg">
-                        <div class="widget-header">
-                            <h2><i class="fas fa-terminal"></i> Comandos Ejecutados</h2>
+                <!-- TERMINAL -->
+                <div class="sd-card">
+                    <div class="sd-card-header">
+                        <h3><i class="fas fa-terminal"></i> Terminal</h3>
+                        <div style="display:flex;gap:6px;align-items:center">
+                            <span class="sd-badge" id="terminal-status-badge">Esperando...</span>
+                            <span class="sd-badge" id="sd-session-badge">—</span>
+                            <span class="sd-badge" id="sd-root-badge">—</span>
                         </div>
-                        <div id="scan-commands-list" class="log-list">
-                            <div class="empty-state">
-                                <i class="fas fa-terminal"></i>
-                                <p>Sin comandos registrados todavia</p>
+                    </div>
+                    <div class="sd-card-body">
+                        <div class="sd-terminal-layout">
+                            <div class="sd-terminal-main">
+                                <div class="sd-term-actions">
+                                    <input type="text" id="terminal-command-input" class="sd-input" placeholder="whoami, id, ls /root, uname -a...">
+                                    <button class="sd-btn sd-btn-primary" id="terminal-command-btn" disabled><i class="fas fa-play"></i></button>
+                                    <button class="sd-btn sd-btn-ghost" id="terminal-analyze-btn" disabled><i class="fas fa-brain"></i></button>
+                                    <button class="sd-btn sd-btn-ghost" id="sensitive-search-btn" disabled><i class="fas fa-search-dollar"></i></button>
+                                </div>
+                                <pre id="terminal-output" class="sd-term-output">Esperando acceso root...</pre>
+                                <div class="sd-term-label">Salida analizada por IA</div>
+                                <pre id="terminal-analysis-response" class="sd-term-output sd-term-analysis">Esperando comando para analizar...</pre>
+                                <div id="session-actions" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid var(--sd-line);display:flex;gap:6px">
+                                    <button class="sd-btn sd-btn-ghost" id="stop-session-btn"><i class="fas fa-stop"></i> Detener</button>
+                                    <button class="sd-btn sd-btn-danger" id="destroy-session-btn"><i class="fas fa-trash"></i> Eliminar</button>
+                                </div>
+                            </div>
+                            <div class="sd-terminal-chat">
+                                <div class="sd-term-label">Chat con IA</div>
+                                <textarea id="terminal-chat-input" class="sd-input sd-chat-input" placeholder="Pregunta sobre la sesion..."></textarea>
+                                <button class="sd-btn sd-btn-primary" id="terminal-chat-btn" disabled><i class="fas fa-paper-plane"></i> Enviar</button>
+                                <pre id="terminal-chat-response" class="sd-term-output sd-term-analysis">Esperando consulta...</pre>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <div class="widget widget-lg">
-                        <div class="widget-header">
-                            <h2><i class="fas fa-brain"></i> Salida del LLM</h2>
-                        </div>
-                        <pre id="scan-llm-response" class="terminal-output">Aun no hay respuesta del modelo.</pre>
+                <!-- EXPLOITATION -->
+                <div class="sd-card">
+                    <div class="sd-card-header">
+                        <h3><i class="fas fa-bolt"></i> Explotacion</h3>
                     </div>
-
-                    <div class="widget widget-lg">
-                        <div class="widget-header">
-                            <h2><i class="fas fa-file-code"></i> Recon Consolidado</h2>
-                        </div>
-                        <pre id="scan-raw-output" class="terminal-output">Aun no hay salida de recon.</pre>
-                    </div>
-
-                    <div class="widget widget-lg">
-                        <div class="widget-header">
-                            <h2><i class="fas fa-user-secret"></i> Explotacion y Sesiones</h2>
-                        </div>
-                        <div id="scan-exploitation-list" class="log-list">
-                            <div class="empty-state">
-                                <i class="fas fa-bolt"></i>
-                                <p>Las sugerencias de explotacion y sesiones apareceran aqui</p>
-                            </div>
+                    <div class="sd-card-body" id="scan-exploitation-list">
+                        <div class="sd-empty">
+                            <i class="fas fa-crosshairs"></i>
+                            <p>Eventos de explotacion apareceran aqui</p>
                         </div>
                     </div>
                 </div>
@@ -624,148 +646,125 @@
 
             <section id="exploits-section" class="content-section">
                 <div class="section-header">
-                    <h1>Exploit Manager</h1>
-                    <p>Biblioteca de payloads generados por IA, asociados por objetivo y revisables antes de ejecutar</p>
+                    <div>
+                        <span class="eyebrow">BIBLIOTECA DE EXPLOITS</span>
+                        <h1>Exploit Manager</h1>
+                        <p>Payloads generados por IA, asociados por objetivo y ejecutables contra sesiones activas</p>
+                    </div>
+                    <div id="exploits-session-info" style="display:none;text-align:right;font-size:0.78rem">
+                        <div style="color:var(--muted)">Sesión activa</div>
+                        <div style="font-weight:700;color:var(--text)" id="exploits-session-label">—</div>
+                    </div>
                 </div>
 
-                <div class="dashboard-grid">
-                    <div class="widget widget-lg">
-                        <div class="widget-header">
-                            <h2><i class="fas fa-folder-tree"></i> Payloads por objetivo</h2>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Filtrar por IP / dominio</label>
-                                <input type="text" id="exploit-filter-target" class="form-input" placeholder="Ej: 192.168.100.1">
+                <div class="dashboard-grid" style="display:grid;grid-template-columns: 1fr 1fr;gap:1rem">
+                    <!-- LEFT: Library + generated code -->
+                    <div style="display:flex;flex-direction:column;gap:1rem">
+                        <!-- Session context -->
+                        <div class="sd-card">
+                            <div class="sd-card-header">
+                                <h3><i class="fas fa-bullseye"></i> Contexto actual</h3>
                             </div>
-                            <div class="form-group">
-                                <label>&nbsp;</label>
-                                <button type="button" class="btn btn-secondary" id="refresh-exploit-library-btn">
-                                    <i class="fas fa-sync-alt"></i> Actualizar
-                                </button>
+                            <div class="sd-card-body" style="font-size:0.82rem">
+                                <div id="exploits-context" style="color:var(--muted)">Sin sesión activa. Los exploits se mostrarán aquí según el objetivo.</div>
                             </div>
                         </div>
-                        <div id="exploit-library-list" class="log-list">
-                            <div class="empty-state">
-                                <i class="fas fa-code"></i>
-                                <p>No hay payloads guardados todavía</p>
+
+                        <!-- Payload library -->
+                        <div class="sd-card">
+                            <div class="sd-card-header">
+                                <h3><i class="fas fa-folder-tree"></i> Payloads por objetivo</h3>
+                                <div style="display:flex;gap:5px">
+                                    <input type="text" id="exploit-filter-target" class="sd-input" placeholder="Filtrar por IP" style="min-height:32px;width:150px;font-size:0.72rem">
+                                    <button class="sd-btn sd-btn-ghost" id="refresh-exploit-library-btn" style="min-height:32px"><i class="fas fa-sync"></i></button>
+                                </div>
+                            </div>
+                            <div class="sd-card-body" id="exploit-library-list" style="max-height:300px;overflow-y:auto">
+                                <div class="sd-empty"><i class="fas fa-code"></i><p>No hay payloads guardados todavía</p></div>
+                            </div>
+                        </div>
+
+                        <!-- Generated code -->
+                        <div class="sd-card">
+                            <div class="sd-card-header">
+                                <h3><i class="fas fa-folder-open"></i> Código generado</h3>
+                                <button class="sd-btn sd-btn-ghost" id="refresh-generated-code-btn" style="min-height:32px"><i class="fas fa-sync"></i></button>
+                            </div>
+                            <div class="sd-card-body" id="generated-code-list" style="max-height:200px;overflow-y:auto">
+                                <div class="sd-empty"><i class="fas fa-code"></i><p>Sin código generado aún</p></div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="widget widget-lg">
-                        <div class="widget-header">
-                            <h2><i class="fas fa-folder-open"></i> Código generado</h2>
-                            <button type="button" class="btn btn-sm btn-secondary" id="refresh-generated-code-btn">
-                                <i class="fas fa-sync-alt"></i>
-                            </button>
+                    <!-- RIGHT: Editor + AI + Execution -->
+                    <div style="display:flex;flex-direction:column;gap:1rem">
+                        <!-- Editor -->
+                        <div class="sd-card">
+                            <div class="sd-card-header">
+                                <h3><i class="fas fa-code-branch"></i> Editor de exploit</h3>
+                                <div style="display:flex;gap:4px">
+                                    <button class="sd-btn sd-btn-ghost" id="new-exploit-artifact-btn" style="min-height:30px;font-size:0.7rem"><i class="fas fa-plus"></i> Nuevo</button>
+                                    <button class="sd-btn sd-btn-danger" id="delete-exploit-btn" style="min-height:30px;font-size:0.7rem"><i class="fas fa-trash"></i></button>
+                                </div>
+                            </div>
+                            <div class="sd-card-body">
+                                <form id="exploit-editor-form">
+                                    <input type="hidden" id="exploit-artifact-id">
+                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+                                        <input type="text" id="exploit-target" class="sd-input" placeholder="Objetivo" style="min-height:32px;font-size:0.75rem">
+                                        <input type="text" id="exploit-cve" class="sd-input" placeholder="CVE-YYYY-NNNN" style="min-height:32px;font-size:0.75rem">
+                                    </div>
+                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px">
+                                        <input type="text" id="exploit-title" class="sd-input" placeholder="Título del payload" style="min-height:32px;font-size:0.75rem">
+                                        <select id="exploit-language" class="sd-input" style="min-height:32px;font-size:0.75rem">
+                                            <option value="python">Python</option>
+                                            <option value="bash">Bash</option>
+                                            <option value="ruby">Ruby</option>
+                                            <option value="perl">Perl</option>
+                                            <option value="text">Texto / notas</option>
+                                        </select>
+                                    </div>
+                                    <input type="text" id="exploit-filename" class="sd-input" placeholder="exploit.py" style="min-height:32px;font-size:0.75rem;margin-top:6px">
+                                    <textarea id="exploit-code" class="sd-input" rows="8" spellcheck="false" placeholder="El payload o PoC aparecerá aquí" style="font-family:var(--mono);font-size:0.72rem;padding:0.5rem;margin-top:6px;resize:vertical"></textarea>
+                                    <textarea id="exploit-notes" class="sd-input" rows="2" placeholder="Notas, precondiciones, fuentes..." style="font-size:0.72rem;padding:0.5rem;margin-top:6px;resize:vertical"></textarea>
+                                    <div style="display:flex;gap:5px;margin-top:8px">
+                                        <button type="submit" class="sd-btn sd-btn-primary" style="flex:1"><i class="fas fa-save"></i> Guardar</button>
+                                        <button type="button" class="sd-btn sd-btn-ghost" id="analyze-exploit-btn"><i class="fas fa-brain"></i> Analizar</button>
+                                        <button type="button" class="sd-btn sd-btn-ghost" id="copy-code-btn"><i class="fas fa-copy"></i></button>
+                                    </div>
+                                </form>
+                            </div>
                         </div>
-                        <div id="generated-code-list" class="log-list">
-                            <div class="empty-state"><i class="fas fa-code"></i><p>Sin código generado aún</p></div>
-                        </div>
-                    </div>
 
-                    <div class="widget widget-lg">
-                        <div class="widget-header">
-                            <h2><i class="fas fa-code-branch"></i> Editor de exploit</h2>
+                        <!-- AI Generator -->
+                        <div class="sd-card">
+                            <div class="sd-card-header">
+                                <h3><i class="fas fa-wand-magic-sparkles"></i> Generar exploit con IA</h3>
+                            </div>
+                            <div class="sd-card-body">
+                                <textarea id="exploit-ai-prompt" class="sd-input" rows="3" placeholder="Ej: Busca un PoC para CVE-XXXX-YYYY parametrizado para el objetivo" style="font-size:0.75rem;padding:0.5rem;resize:vertical"></textarea>
+                                <div style="display:flex;gap:5px;margin-top:6px">
+                                    <button type="button" class="sd-btn sd-btn-primary" id="exploit-ai-generate-btn" style="flex:1"><i class="fas fa-magic"></i> Generar</button>
+                                    <button type="button" class="sd-btn sd-btn-ghost" id="apply-ai-code-btn"><i class="fas fa-code"></i> Aplicar</button>
+                                    <button type="button" class="sd-btn sd-btn-ghost" id="copy-ai-code-btn" style="display:none"><i class="fas fa-copy"></i></button>
+                                </div>
+                                <pre id="exploit-ai-response" class="sd-pre" style="margin-top:6px;max-height:200px">La respuesta de la IA aparecerá aquí.</pre>
+                            </div>
                         </div>
-                        <form id="exploit-editor-form" class="full-form">
-                            <input type="hidden" id="exploit-artifact-id">
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label>Objetivo</label>
-                                    <input type="text" id="exploit-target" class="form-input" placeholder="192.168.100.1">
-                                </div>
-                                <div class="form-group">
-                                    <label>CVE / Referencia</label>
-                                    <input type="text" id="exploit-cve" class="form-input" placeholder="CVE-YYYY-NNNN">
-                                </div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label>Título</label>
-                                    <input type="text" id="exploit-title" class="form-input" placeholder="PoC de validación">
-                                </div>
-                                <div class="form-group">
-                                    <label>Lenguaje</label>
-                                    <select id="exploit-language" class="form-input">
-                                        <option value="python">Python</option>
-                                        <option value="bash">Bash</option>
-                                        <option value="ruby">Ruby</option>
-                                        <option value="perl">Perl</option>
-                                        <option value="text">Texto / notas</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label>Nombre de archivo</label>
-                                <input type="text" id="exploit-filename" class="form-input" placeholder="exploit_router_check.py">
-                            </div>
-                        <div class="form-group">
-                                <label>Código <button type="button" class="btn btn-secondary btn-sm" id="copy-code-btn" title="Copiar código al portapapeles">
-                                    <i class="fas fa-copy"></i> Copiar
-                                </button></label>
-                                <textarea id="exploit-code" class="form-input code-editor" rows="16" spellcheck="false" placeholder="El payload o PoC aparecerá aquí"></textarea>
-                            </div>
-                            <div class="form-group">
-                                <label>Notas</label>
-                                <textarea id="exploit-notes" class="form-input" rows="4" placeholder="Precondiciones, uso esperado, fuentes, limitaciones"></textarea>
-                            </div>
-                            <div class="settings-actions">
-                                <button type="button" class="btn btn-secondary" id="new-exploit-artifact-btn">
-                                    <i class="fas fa-plus"></i> Nuevo
-                                </button>
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-save"></i> Guardar
-                                </button>
-                                <button type="button" class="btn btn-secondary" id="analyze-exploit-btn">
-                                    <i class="fas fa-brain"></i> Analizar con IA
-                                </button>
-                                <button type="button" class="btn btn-danger" id="delete-exploit-btn">
-                                    <i class="fas fa-trash"></i> Eliminar
-                                </button>
-                            </div>
-                        </form>
-                    </div>
 
-                    <div class="widget widget-lg">
-                        <div class="widget-header">
-                            <h2><i class="fas fa-wand-magic-sparkles"></i> IA de exploits</h2>
+                        <!-- Execute -->
+                        <div class="sd-card">
+                            <div class="sd-card-header">
+                                <h3><i class="fas fa-play"></i> Ejecución</h3>
+                            </div>
+                            <div class="sd-card-body">
+                                <div style="display:flex;gap:5px">
+                                    <input type="text" id="exploit-run-args" class="sd-input" placeholder="--target 192.168.100.1 --port 80" style="min-height:36px;font-size:0.75rem;font-family:var(--mono)">
+                                    <button type="button" class="sd-btn sd-btn-primary" id="run-exploit-artifact-btn" style="min-height:36px"><i class="fas fa-play"></i> Ejecutar</button>
+                                </div>
+                                <pre id="exploit-run-output" class="sd-pre" style="margin-top:6px">La salida de ejecución aparecerá aquí.</pre>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label>Pedir generación o ajustes</label>
-                            <textarea id="exploit-ai-prompt" class="form-input" rows="5" placeholder="Ej: Busca una forma de validar este CVE con un PoC no destructivo y parametrizado para el objetivo"></textarea>
-                        </div>
-                        <div class="settings-actions">
-                            <button type="button" class="btn btn-primary" id="exploit-ai-generate-btn">
-                                <i class="fas fa-magic"></i> Pedir a la IA
-                            </button>
-                            <button type="button" class="btn btn-secondary" id="apply-ai-code-btn">
-                                <i class="fas fa-code"></i> Aplicar código
-                            </button>
-                            <button type="button" class="btn btn-secondary" id="copy-ai-code-btn" style="display: none;">
-                                <i class="fas fa-copy"></i> Copiar código IA
-                            </button>
-                        </div>
-                        <div class="ai-response-container">
-                            <pre id="exploit-ai-response" class="terminal-output code-block">La respuesta de la IA aparecerá aquí.</pre>
-                        </div>
-                    </div>
-
-                    <div class="widget widget-lg">
-                        <div class="widget-header">
-                            <h2><i class="fas fa-play"></i> Ejecución controlada</h2>
-                        </div>
-                        <div class="form-group">
-                            <label>Argumentos</label>
-                            <input type="text" id="exploit-run-args" class="form-input" placeholder="Ej: --target 192.168.100.1 --port 80">
-                        </div>
-                        <div class="settings-actions">
-                            <button type="button" class="btn btn-primary" id="run-exploit-artifact-btn">
-                                <i class="fas fa-play"></i> Ejecutar payload guardado
-                            </button>
-                        </div>
-                        <pre id="exploit-run-output" class="terminal-output">La salida de ejecución aparecerá aquí.</pre>
                     </div>
                 </div>
             </section>
@@ -1073,111 +1072,106 @@
             <!-- Victim Explorer Section -->
             <section id="explorer-section" class="content-section">
                 <div class="section-header">
-                    <h1>Explorador de Víctima</h1>
-                    <p>Navega archivos, busca datos sensibles, explora bases de datos y descarga evidencias</p>
+                    <div>
+                        <span class="eyebrow">EXPLORACION ACTIVA</span>
+                        <h1>Explorador de Víctima</h1>
+                        <p>Navega archivos, busca datos sensibles, explora bases de datos y descarga evidencias</p>
+                    </div>
+                    <div class="explorer-session-info" id="explorer-session-info" style="display:none;text-align:right">
+                        <div style="font-size:0.75rem;color:var(--muted)">Sesión activa</div>
+                        <div style="font-size:0.9rem;font-weight:700;color:var(--text)" id="explorer-session-label">—</div>
+                        <div style="font-size:0.72rem;color:var(--primary)" id="explorer-session-target">—</div>
+                    </div>
                 </div>
+
+                <!-- Connection status bar -->
+                <div class="explorer-connection-bar" id="explorer-connection-bar">
+                    <div class="explorer-conn-status" id="explorer-conn-status">
+                        <i class="fas fa-plug" id="explorer-conn-icon"></i>
+                        <span id="explorer-conn-text">Esperando sesión activa...</span>
+                    </div>
+                    <div class="explorer-conn-actions">
+                        <button type="button" class="sd-btn sd-btn-outline" id="explorer-refresh-btn" style="display:none">
+                            <i class="fas fa-sync"></i> Refrescar
+                        </button>
+                    </div>
+                </div>
+
                 <div class="dashboard-grid">
+                    <!-- FILE SYSTEM PANEL -->
                     <div class="widget widget-lg">
                         <div class="widget-header">
                             <h2><i class="fas fa-folder-tree"></i> Sistema de archivos</h2>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Scan ID (con sesión activa)</label>
-                                <input type="text" id="explorer-scan-id" class="form-input" placeholder="abc12345">
+                            <div class="explorer-quick-actions" id="explorer-toolbar-actions" style="display:none;gap:5px">
+                                <button class="sd-btn sd-btn-ghost" id="explorer-sysinfo-btn" title="Info del sistema"><i class="fas fa-desktop"></i></button>
+                                <button class="sd-btn sd-btn-ghost" id="explorer-sensitive-btn" title="Buscar datos sensibles"><i class="fas fa-shield-halved"></i></button>
+                                <button class="sd-btn sd-btn-ghost" id="explorer-dbs-btn" title="Buscar bases de datos"><i class="fas fa-database"></i></button>
                             </div>
-                            <button type="button" class="btn btn-secondary" id="explorer-connect-btn">
-                                <i class="fas fa-plug"></i> Conectar
-                            </button>
                         </div>
+
+                        <!-- Path navigation -->
                         <div id="explorer-toolbar" style="display:none">
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <input type="text" id="explorer-path" class="form-input mono-input" value="/" placeholder="/ruta/a/explorar">
+                            <div class="form-row" style="margin-bottom:8px">
+                                <div class="form-group" style="flex:1">
+                                    <div style="display:flex;gap:5px">
+                                        <input type="text" id="explorer-path" class="form-input mono-input" value="/" placeholder="/ruta/a/explorar" style="font-family:var(--mono)">
+                                        <button type="button" class="sd-btn sd-btn-primary" id="explorer-ls-btn"><i class="fas fa-list"></i> ls</button>
+                                    </div>
                                 </div>
-                                <button type="button" class="btn btn-primary btn-sm" id="explorer-ls-btn">
-                                    <i class="fas fa-list"></i> ls
-                                </button>
+                            </div>
+                            <div class="form-row" style="margin-bottom:8px">
+                                <div class="form-group" style="flex:1">
+                                    <div style="display:flex;gap:5px">
+                                        <input type="text" id="explorer-file-path" class="form-input" placeholder="/etc/passwd" style="font-family:var(--mono)">
+                                        <button type="button" class="sd-btn sd-btn-primary" id="explorer-cat-btn"><i class="fas fa-file-lines"></i> cat</button>
+                                        <button type="button" class="sd-btn sd-btn-ghost" id="explorer-dl-btn"><i class="fas fa-download"></i></button>
+                                    </div>
+                                </div>
                             </div>
                             <div class="form-row">
-                                <div class="form-group">
-                                    <input type="text" id="explorer-file-path" class="form-input" placeholder="/etc/passwd">
+                                <div class="form-group" style="flex:1">
+                                    <div style="display:flex;gap:5px">
+                                        <input type="text" id="explorer-search-pattern" class="form-input" placeholder="Patrón de búsqueda (ej: *.db, *.conf, password)" style="font-family:var(--mono)">
+                                        <button type="button" class="sd-btn sd-btn-ghost" id="explorer-search-btn"><i class="fas fa-search"></i> Buscar</button>
+                                        <button type="button" class="sd-btn sd-btn-ghost" id="explorer-grep-btn"><i class="fas fa-file-code"></i> Grep</button>
+                                    </div>
                                 </div>
-                                <button type="button" class="btn btn-primary btn-sm" id="explorer-cat-btn">
-                                    <i class="fas fa-file-lines"></i> cat
-                                </button>
-                                <button type="button" class="btn btn-secondary btn-sm" id="explorer-dl-btn">
-                                    <i class="fas fa-download"></i> Descargar
-                                </button>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <input type="text" id="explorer-search-pattern" class="form-input" placeholder="pattern (ej: *.db)">
-                                </div>
-                                <button type="button" class="btn btn-secondary btn-sm" id="explorer-search-btn">
-                                    <i class="fas fa-search"></i> Buscar
-                                </button>
-                                <button type="button" class="btn btn-secondary btn-sm" id="explorer-grep-btn">
-                                    <i class="fas fa-file-code"></i> Grep
-                                </button>
-                            </div>
-                            <div class="form-row">
-                                <button type="button" class="btn btn-secondary btn-sm" id="explorer-dbs-btn">
-                                    <i class="fas fa-database"></i> Buscar DBs
-                                </button>
-                                <button type="button" class="btn btn-secondary btn-sm" id="explorer-sensitive-btn">
-                                    <i class="fas fa-shield-halved"></i> Datos sensibles
-                                </button>
-                                <button type="button" class="btn btn-secondary btn-sm" id="explorer-sysinfo-btn">
-                                    <i class="fas fa-desktop"></i> Info sistema
-                                </button>
                             </div>
                         </div>
-                        <pre id="explorer-output" class="terminal-output" style="max-height:500px">Conecta una sesión para empezar.</pre>
-                        <div id="explorer-download-list" class="log-list" style="margin-top:8px"></div>
+
+                        <pre id="explorer-output" class="terminal-output" style="max-height:400px;margin-top:8px">Conectando a la sesión activa...</pre>
                     </div>
 
+                    <!-- DB CONSOLE -->
                     <div class="widget widget-lg">
                         <div class="widget-header">
-                            <h2><i class="fas fa-database"></i> Consulta de bases de datos</h2>
+                            <h2><i class="fas fa-database"></i> Consola de bases de datos</h2>
                         </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <select id="explorer-db-type" class="form-input">
-                                    <option value="mysql">MySQL</option>
-                                    <option value="postgres">PostgreSQL</option>
-                                    <option value="sqlite">SQLite</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <input type="text" id="explorer-db-host" class="form-input" placeholder="localhost">
-                            </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                            <select id="explorer-db-type" class="form-input" style="min-height:36px">
+                                <option value="mysql">MySQL</option>
+                                <option value="postgres">PostgreSQL</option>
+                                <option value="sqlite">SQLite</option>
+                            </select>
+                            <input type="text" id="explorer-db-host" class="form-input" placeholder="localhost" style="min-height:36px">
                         </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <input type="text" id="explorer-db-user" class="form-input" placeholder="root">
-                            </div>
-                            <div class="form-group">
-                                <input type="password" id="explorer-db-pass" class="form-input" placeholder="password">
-                            </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
+                            <input type="text" id="explorer-db-user" class="form-input" placeholder="Usuario (root)" style="min-height:36px">
+                            <input type="password" id="explorer-db-pass" class="form-input" placeholder="Contraseña" style="min-height:36px">
                         </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <input type="text" id="explorer-db-name" class="form-input" placeholder="DB name / path (para SQLite)">
-                            </div>
-                            <div class="form-group">
-                                <input type="text" id="explorer-db-query" class="form-input" value="SHOW DATABASES;">
-                            </div>
-                            <button type="button" class="btn btn-primary btn-sm" id="explorer-db-query-btn">
-                                <i class="fas fa-play"></i> Query
-                            </button>
+                        <div style="display:flex;gap:5px;margin-top:6px">
+                            <input type="text" id="explorer-db-name" class="form-input" placeholder="DB / ruta SQLite" style="min-height:36px;flex:1;font-family:var(--mono)">
+                            <input type="text" id="explorer-db-query" class="form-input" value="SHOW DATABASES;" style="min-height:36px;flex:2;font-family:var(--mono)">
+                            <button type="button" class="sd-btn sd-btn-primary" id="explorer-db-query-btn" style="min-height:36px"><i class="fas fa-play"></i></button>
                         </div>
-                        <pre id="explorer-db-output" class="terminal-output">Resultado de la consulta.</pre>
+                        <pre id="explorer-db-output" class="terminal-output" style="max-height:200px;margin-top:6px">Resultado de consulta.</pre>
                     </div>
 
+                    <!-- DOWNLOADS -->
                     <div class="widget widget-lg">
                         <div class="widget-header">
                             <h2><i class="fas fa-download"></i> Descargas disponibles</h2>
+                            <button type="button" class="sd-btn sd-btn-ghost" id="explorer-downloads-refresh"><i class="fas fa-sync"></i></button>
                         </div>
                         <div id="explorer-downloads-section" class="log-list">
                             <div class="empty-state"><i class="fas fa-download"></i><p>No hay descargas aún</p></div>
