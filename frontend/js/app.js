@@ -37,7 +37,20 @@ let activeScanId = localStorage.getItem('activeScanId') || null;
 let activeScanPollTimer = null;
 let currentScanData = null;
 let lastTerminalCommand = '';
-let llmProviderCatalog = [];
+let llmProviderCatalog = [
+    { id: 'openai_compatible', label: 'OpenAI compatible', category: 'custom', protocol: 'openai', api_base: 'http://localhost:1234/v1', requires_api_key: false, description: 'Cualquier endpoint Chat Completions.', accent: 'custom' },
+    { id: 'openai', label: 'OpenAI', category: 'cloud', protocol: 'openai', api_base: 'https://api.openai.com/v1', requires_api_key: true, description: 'API oficial de OpenAI.', accent: 'openai' },
+    { id: 'ollama', label: 'Ollama', category: 'local', protocol: 'ollama', api_base: 'http://localhost:11434', requires_api_key: false, description: 'Runtime local de Ollama.', accent: 'ollama' },
+    { id: 'lm_studio', label: 'LM Studio', category: 'local', protocol: 'openai', api_base: 'http://localhost:1234/v1', requires_api_key: false, description: 'Servidor local de LM Studio.', accent: 'local' },
+    { id: 'vllm', label: 'vLLM / SGLang', category: 'local', protocol: 'openai', api_base: 'http://localhost:8000/v1', requires_api_key: false, description: 'Servidor de inferencia local.', accent: 'local' },
+    { id: 'nvidia_nim', label: 'NVIDIA NIM', category: 'cloud', protocol: 'openai', api_base: 'https://integrate.api.nvidia.com/v1', requires_api_key: true, description: 'Catálogo cloud de NVIDIA.', accent: 'nvidia' },
+    { id: 'nvidia_nim_local', label: 'NVIDIA NIM local', category: 'local', protocol: 'openai', api_base: 'http://localhost:8001/v1', requires_api_key: false, description: 'Contenedor NIM propio.', accent: 'nvidia' },
+    { id: 'deepseek', label: 'DeepSeek', category: 'cloud', protocol: 'openai', api_base: 'https://api.deepseek.com', requires_api_key: true, description: 'Modelos DeepSeek.', accent: 'deepseek' },
+    { id: 'groq', label: 'Groq', category: 'cloud', protocol: 'openai', api_base: 'https://api.groq.com/openai/v1', requires_api_key: true, description: 'Inferencia de baja latencia.', accent: 'groq' },
+    { id: 'mistral', label: 'Mistral AI', category: 'cloud', protocol: 'openai', api_base: 'https://api.mistral.ai/v1', requires_api_key: true, description: 'API de modelos Mistral.', accent: 'mistral' },
+    { id: 'together', label: 'Together AI', category: 'cloud', protocol: 'openai', api_base: 'https://api.together.ai/v1', requires_api_key: true, description: 'Modelos abiertos mediante API.', accent: 'together' },
+    { id: 'openrouter', label: 'OpenRouter', category: 'gateway', protocol: 'openai', api_base: 'https://openrouter.ai/api/v1', requires_api_key: true, description: 'Gateway unificado de modelos.', accent: 'openrouter' },
+];
 let loadedLlmConfig = null;
 let lastLlmProbe = null;
 let systemHealthCache = null;
@@ -449,15 +462,13 @@ async function loadLlmSettings() {
             apiFetch('/settings/llm/providers'),
             apiFetch('/settings/llm'),
         ]);
-        llmProviderCatalog = catalog.providers || [];
-        if (!llmProviderCatalog.length) {
-            llmProviderCatalog = getFallbackProviders();
+        if (catalog?.providers?.length) {
+            llmProviderCatalog = catalog.providers;
         }
         populateLlmSettings(config);
         updateLlmConfigStatus('Configuración cargada', null, 'Prueba la inferencia para confirmar el estado actual.');
         setStatusBadge('llm-status', Boolean(config.model), config.model ? 'CONFIGURADO' : 'PENDIENTE', 'PENDIENTE');
     } catch (error) {
-        llmProviderCatalog = getFallbackProviders();
         renderProviderCatalog('openai_compatible');
         updateLlmConfigStatus('Error: ' + (error.message || 'No se pudo cargar la configuración'), false);
     }
@@ -3370,6 +3381,9 @@ async function init() {
     setupSessionsHandlers();
     setupAdminHandlers();
     setupAuthLogout();
+
+    renderProviderCatalog('openai_compatible');
+    document.getElementById('settings-section')?.classList.remove('active');
 
     const authenticated = await authenticate();
     if (!authenticated) return;

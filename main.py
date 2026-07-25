@@ -17,6 +17,7 @@ import time
 import json
 import socket
 import logging
+import logging.handlers
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -3064,6 +3065,8 @@ def start_server():
     log_dir = os.path.join(os.path.dirname(__file__), "logs")
     os.makedirs(log_dir, exist_ok=True)
 
+    print(f"[*] Access logs: {os.path.join(log_dir, 'access.log')}")
+
     LOG_CONFIG = {
         "version": 1,
         "disable_existing_loggers": False,
@@ -3079,7 +3082,7 @@ def start_server():
             },
         },
         "handlers": {
-            "default": {
+            "console": {
                 "formatter": "default",
                 "class": "logging.StreamHandler",
                 "stream": "ext://sys.stderr",
@@ -3100,8 +3103,8 @@ def start_server():
             },
         },
         "loggers": {
-            "uvicorn": {"handlers": ["default", "error_file"], "level": "INFO", "propagate": False},
-            "uvicorn.error": {"handlers": ["default", "error_file"], "level": "INFO", "propagate": False},
+            "uvicorn": {"handlers": ["console", "error_file"], "level": "INFO", "propagate": False},
+            "uvicorn.error": {"handlers": ["console", "error_file"], "level": "INFO", "propagate": False},
             "uvicorn.access": {"handlers": ["access_file"], "level": "INFO", "propagate": False},
         },
     }
