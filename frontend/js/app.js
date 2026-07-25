@@ -218,15 +218,17 @@ async function authenticate() {
 }
 
 async function apiFetch(path, options = {}) {
+    const timeoutMs = options.timeout ?? 15000;
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
+        const { timeout: _t, ...fetchOpts } = options;
         const response = await fetch(`${API_BASE_URL}${path}`, {
-            ...options,
+            ...fetchOpts,
             signal: controller.signal,
             headers: {
-                ...getAuthHeaders(options.body !== undefined),
-                ...(options.headers || {}),
+                ...getAuthHeaders(fetchOpts.body !== undefined),
+                ...(fetchOpts.headers || {}),
             },
         });
 
@@ -1186,6 +1188,7 @@ async function executeTerminalCommand() {
         const result = await apiFetch(`/scans/${currentScanData.scan_id}/terminal`, {
             method: 'POST',
             body: JSON.stringify({ session_id: currentScanData.session_id || null, command }),
+            timeout: 60000,
         });
         lastTerminalCommand = command;
         appendTerminalOutput(command, result.output || 'Sin salida.');
@@ -1221,6 +1224,7 @@ async function analyzeTerminalOutput() {
         const result = await apiFetch(`/scans/${currentScanData.scan_id}/terminal/analyze`, {
             method: 'POST',
             body: JSON.stringify({ output, command, session_id: currentScanData.session_id }),
+            timeout: 60000,
         });
         document.getElementById('terminal-analysis-response').textContent = result.analysis || 'No se obtuvo respuesta de la IA.';
         showToast('Salida enviada a la IA para análisis.', 'success');
@@ -1243,6 +1247,7 @@ async function searchSensitiveData() {
     try {
         const result = await apiFetch(`/scans/${currentScanData.scan_id}/sensitive-search`, {
             method: 'POST',
+            timeout: 120000,
         });
         lastTerminalCommand = 'sensitive-search';
         appendTerminalOutput('sensitive-search resultado', result.output || 'Sin hallazgos.');
@@ -1275,6 +1280,7 @@ async function sendChatToAi() {
         const response = await apiFetch(`/scans/${currentScanData.scan_id}/terminal/chat`, {
             method: 'POST',
             body: JSON.stringify({ prompt, session_id: currentScanData.session_id }),
+            timeout: 60000,
         });
         document.getElementById('terminal-chat-response').textContent = response.response || 'No se obtuvo respuesta de la IA.';
         showToast('Consulta enviada a la IA correctamente.', 'success');
