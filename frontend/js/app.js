@@ -571,7 +571,9 @@ async function testLlmConnection() {
         setElementText('active-provider-health', 'Con error');
         document.querySelector('.intel-health')?.classList.remove('online');
         setStatusBadge('llm-status', false);
-        showToast(error instanceof SyntaxError ? 'Revisa el JSON de compatibilidad avanzada' : 'La conexión con el LLM falló', 'error');
+        const detail = error.message ? error.message.replace(/^"|"$/g, '') : '';
+        showToast(detail || 'La conexión con el LLM falló', 'error');
+        console.error('LLM test error:', detail);
     } finally {
         if (button) {
             button.disabled = false;

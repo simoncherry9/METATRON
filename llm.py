@@ -63,12 +63,30 @@ REGLAS DE EXACTITUD:
 
 def ask_lm_studio(messages: list) -> str:
     import time
+    import traceback
     try:
         config = load_llm_config()
-        print(f"\n[*] Sending to {config['provider']} model {config['model']}...")
-        print(f"[*] API base: {config['api_base']}")
-        print(f"[*] Timeout: {config['timeout']}s")
-        
+        provider = config.get("provider", "?")
+        model = config.get("model", "?")
+        print(f"\n[*] Sending to {provider} model {model}...")
+        print(f"[*] API base: {config.get('api_base', '?')}")
+        print(f"[*] Timeout: {config.get('timeout', '?')}s")
+
+        if not model:
+            print("[!] No LLM model configured - checking config file...")
+            # Try reading the file directly to debug
+            try:
+                import json, os
+                from llm_config import CONFIG_PATH
+                with open(CONFIG_PATH, "r") as fh:
+                    raw = json.load(fh)
+                print(f"[!] Config file raw model field: {repr(raw.get('model'))}")
+                print(f"[!] Config file raw provider: {repr(raw.get('provider'))}")
+                print(f"[!] Config file keys: {list(raw.keys())}")
+            except Exception as read_err:
+                print(f"[!] Could not read config file for debug: {read_err}")
+            return "[!] No LLM model is configured. Ve a Configuracion > LLM, selecciona un proveedor y modelo, y guarda."
+
         start_time = time.time()
         response = run_llm_chat(messages, config)
         elapsed = time.time() - start_time
@@ -89,6 +107,7 @@ def ask_lm_studio(messages: list) -> str:
         return f"[!] LLM provider HTTP error: {exc}"
     except Exception as exc:
         print(f"[!] Unexpected error: {exc}")
+        traceback.print_exc()
         return f"[!] Unexpected error: {exc}"
 
 

@@ -1962,10 +1962,10 @@ async def preview_llm_models(request: LLMConfigRequest, api_key: str = Security(
 
 @app.post("/settings/llm/test")
 async def test_llm_settings(request: Optional[LLMConfigRequest] = None, api_key: str = Security(verify_api_key)):
-    try:
-        return await probe_llm_connection_async(_effective_llm_config(request))
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"LLM connection failed: {exc}")
+    result = await probe_llm_connection_async(_effective_llm_config(request))
+    if result.get("status") == "offline" or result.get("inference_error"):
+        raise HTTPException(status_code=502, detail=result.get("inference_error") or "LLM connection failed: unknown error")
+    return result
 
 
 @app.post("/scan")

@@ -409,6 +409,7 @@ def probe_llm_connection(config: Dict[str, Any] | None = None) -> Dict[str, Any]
     started = time.perf_counter()
     models: List[str] = []
     models_error = ""
+    inference_error = ""
     try:
         models = list_available_models(current)
     except Exception as exc:
@@ -417,20 +418,45 @@ def probe_llm_connection(config: Dict[str, Any] | None = None) -> Dict[str, Any]
     if not current["model"] and models:
         current["model"] = models[0]
     if not current["model"]:
-        raise ValueError("No model was provided and the provider did not return a model list")
+        return {
+            "status": "offline",
+            "provider": current.get("provider", "?"),
+            "provider_label": PROVIDER_PRESETS.get(current.get("provider", ""), {}).get("label", "?"),
+            "protocol": _provider_protocol(current.get("provider", "openai_compatible")),
+            "api_base": current.get("api_base", ""),
+            "model": "",
+            "models_count": len(models),
+            "models": models,
+            "models_error": models_error,
+            "inference_error": "No model was provided and the provider did not return a model list. Ve a Configuracion > LLM, selecciona un proveedor y modelo, y guarda.",
+            "inference_ok": False,
+            "sample": "",
+            "latency_ms": round((time.perf_counter() - started) * 1000),
+        }
 
     probe_config = deepcopy(current)
     probe_config["max_tokens"] = min(current["max_tokens"], 32)
-    sample = run_llm_chat(
-        [
-            {"role": "system", "content": "You are a connectivity probe."},
-            {"role": "user", "content": "Reply with exactly: OK"},
-        ],
-        probe_config,
-    )
+    sample = ""
+    try:
+        sample = run_llm_chat(
+            [
+                {"role": "system", "content": "You are a connectivity probe."},
+                {"role": "user", "content": "Reply with exactly: OK"},
+            ],
+            probe_config,
+        )
+    except requests.exceptions.ConnectionError as exc:
+        inference_error = f"Cannot connect to {current['api_base']}. Verify the API base URL."
+    except requests.exceptions.Timeout as exc:
+        inference_error = f"Connection timed out after {current['timeout']}s. The provider may be overloaded."
+    except requests.exceptions.HTTPError as exc:
+        inference_error = f"HTTP {exc.response.status_code}: {exc.response.text[:200]}"
+    except Exception as exc:
+        inference_error = str(exc)
+
     latency_ms = round((time.perf_counter() - started) * 1000)
     return {
-        "status": "online",
+        "status": "online" if sample and not inference_error else "error",
         "provider": current["provider"],
         "provider_label": PROVIDER_PRESETS[current["provider"]]["label"],
         "protocol": _provider_protocol(current["provider"]),
@@ -439,7 +465,8 @@ def probe_llm_connection(config: Dict[str, Any] | None = None) -> Dict[str, Any]
         "models_count": len(models),
         "models": models,
         "models_error": models_error,
+        "inference_error": inference_error,
         "inference_ok": bool(sample),
-        "sample": sample[:120],
+        "sample": sample[:120] if sample else "",
         "latency_ms": latency_ms,
     }
