@@ -5,6 +5,7 @@ FastAPI server for PenTool with JWT auth and live scan views.
 """
 
 import os
+import sys
 import re
 import threading
 import uuid
@@ -15,9 +16,20 @@ import queue
 import time
 import json
 import socket
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
+
+os.environ.setdefault("PYTHONUNBUFFERED", "1")
+try:
+    sys.stdout.reconfigure(line_buffering=True)
+except Exception:
+    pass
+try:
+    sys.stderr.reconfigure(line_buffering=True)
+except Exception:
+    pass
 
 from fastapi import FastAPI, HTTPException, Request, Security
 from fastapi.middleware.cors import CORSMiddleware
@@ -3042,15 +3054,63 @@ async def login_page():
 
 def start_server():
     import uvicorn
+    import logging.config
 
     port = int(os.getenv("PENTOOL_PORT", "8000"))
     print(f"[*] PenTool local: http://127.0.0.1:{port}")
     for url in _local_network_urls():
         print(f"[*] PenTool LAN:   {url}")
+
+    log_dir = os.path.join(os.path.dirname(__file__), "logs")
+    os.makedirs(log_dir, exist_ok=True)
+
+    LOG_CONFIG = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "default": {
+                "()": "uvicorn.logging.DefaultFormatter",
+                "fmt": "%(levelprefix)s %(message)s",
+                "use_colors": None,
+            },
+            "access": {
+                "()": "uvicorn.logging.AccessFormatter",
+                "fmt": '%(levelprefix)s %(client_addr)s - "%(request_line)s" %(status_code)s',
+            },
+        },
+        "handlers": {
+            "default": {
+                "formatter": "default",
+                "class": "logging.StreamHandler",
+                "stream": "ext://sys.stderr",
+            },
+            "access_file": {
+                "formatter": "access",
+                "class": "logging.handlers.RotatingFileHandler",
+                "filename": os.path.join(log_dir, "access.log"),
+                "maxBytes": 1048576,
+                "backupCount": 3,
+            },
+            "error_file": {
+                "formatter": "default",
+                "class": "logging.handlers.RotatingFileHandler",
+                "filename": os.path.join(log_dir, "error.log"),
+                "maxBytes": 1048576,
+                "backupCount": 3,
+            },
+        },
+        "loggers": {
+            "uvicorn": {"handlers": ["default", "error_file"], "level": "INFO", "propagate": False},
+            "uvicorn.error": {"handlers": ["default", "error_file"], "level": "INFO", "propagate": False},
+            "uvicorn.access": {"handlers": ["access_file"], "level": "INFO", "propagate": False},
+        },
+    }
+
     uvicorn.run(
         app,
         host=os.getenv("PENTOOL_HOST", "0.0.0.0"),
         port=port,
+        log_config=LOG_CONFIG,
     )
 
 

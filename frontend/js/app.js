@@ -202,22 +202,29 @@ async function authenticate() {
 }
 
 async function apiFetch(path, options = {}) {
-    const response = await fetch(`${API_BASE_URL}${path}`, {
-        ...options,
-        headers: {
-            ...getAuthHeaders(options.body !== undefined),
-            ...(options.headers || {}),
-        },
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    try {
+        const response = await fetch(`${API_BASE_URL}${path}`, {
+            ...options,
+            signal: controller.signal,
+            headers: {
+                ...getAuthHeaders(options.body !== undefined),
+                ...(options.headers || {}),
+            },
+        });
 
-    if (!response.ok) {
-        const text = await response.text();
-        const error = new Error(text || `HTTP ${response.status}`);
-        error.status = response.status;
-        throw error;
+        if (!response.ok) {
+            const text = await response.text();
+            const error = new Error(text || `HTTP ${response.status}`);
+            error.status = response.status;
+            throw error;
+        }
+
+        return response.json();
+    } finally {
+        clearTimeout(timeout);
     }
-
-    return response.json();
 }
 
 function normalizeScan(scan) {
@@ -443,12 +450,28 @@ async function loadLlmSettings() {
             apiFetch('/settings/llm'),
         ]);
         llmProviderCatalog = catalog.providers || [];
+        if (!llmProviderCatalog.length) {
+            llmProviderCatalog = getFallbackProviders();
+        }
         populateLlmSettings(config);
         updateLlmConfigStatus('Configuración cargada', null, 'Prueba la inferencia para confirmar el estado actual.');
         setStatusBadge('llm-status', Boolean(config.model), config.model ? 'CONFIGURADO' : 'PENDIENTE', 'PENDIENTE');
     } catch (error) {
-        updateLlmConfigStatus('No se pudo cargar la configuración', false);
+        llmProviderCatalog = getFallbackProviders();
+        renderProviderCatalog('openai_compatible');
+        updateLlmConfigStatus('Error: ' + (error.message || 'No se pudo cargar la configuración'), false);
     }
+}
+
+function getFallbackProviders() {
+    return [
+        { id: 'openai_compatible', label: 'OpenAI compatible', category: 'custom', protocol: 'openai', api_base: 'http://localhost:1234/v1', requires_api_key: false, description: 'Cualquier endpoint Chat Completions.', accent: 'custom' },
+        { id: 'openai', label: 'OpenAI', category: 'cloud', protocol: 'openai', api_base: 'https://api.openai.com/v1', requires_api_key: true, description: 'API oficial de OpenAI.', accent: 'openai' },
+        { id: 'ollama', label: 'Ollama', category: 'local', protocol: 'ollama', api_base: 'http://localhost:11434', requires_api_key: false, description: 'Runtime local de Ollama.', accent: 'ollama' },
+        { id: 'lm_studio', label: 'LM Studio', category: 'local', protocol: 'openai', api_base: 'http://localhost:1234/v1', requires_api_key: false, description: 'Servidor local de LM Studio.', accent: 'local' },
+        { id: 'vllm', label: 'vLLM / SGLang', category: 'local', protocol: 'openai', api_base: 'http://localhost:8000/v1', requires_api_key: false, description: 'Servidor de inferencia local.', accent: 'local' },
+        { id: 'nvidia_nim', label: 'NVIDIA NIM', category: 'cloud', protocol: 'openai', api_base: 'https://integrate.api.nvidia.com/v1', requires_api_key: true, description: 'Catálogo cloud de NVIDIA.', accent: 'nvidia' },
+    ];
 }
 
 async function refreshAvailableModels(selectedModel = null) {
@@ -629,6 +652,9 @@ function showSection(sectionName) {
     window.scrollTo(0, 0);
     if (sectionName === 'exploits') {
         loadExploitLibrary();
+    }
+    if (sectionName === 'settings' && !llmProviderCatalog.length) {
+        loadLlmSettings();
     }
     if (sectionName === 'system') {
         loadSystemHealth();
@@ -2417,7 +2443,7 @@ function startAgentPolling(scanId) {
                 showToast(`Agente ${scan.status}`, scan.status === 'completed' ? 'success' : 'error');
             }
         } catch { clearInterval(interval); }
-    }, 2000);
+    }, 3000);
 }
 
 // ============================================

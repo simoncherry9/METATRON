@@ -3,7 +3,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Optional
 
-from db import add_scan_event, get_connection, update_scan_run
+from db import add_scan_event, get_connection, get_scan_run, update_scan_run
 from llm import ask_lm_studio
 from llm_config import load_llm_config, run_llm_chat
 from tools import run_tool_by_command, is_blocked_command
